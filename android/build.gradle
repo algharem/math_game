@@ -1,0 +1,64 @@
+allprojects {
+    repositories {
+        mavenLocal()
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.buildDir = "../build"
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+}
+subprojects {
+    project.evaluationDependsOn(":app")
+}
+
+subprojects {
+    tasks.configureEach {
+        if (name.startsWith("extract") && name.endsWith("Annotations")) {
+            enabled = false
+        }
+    }
+    tasks.configureEach {
+        if (name == "syncDebugLibJars" || name == "syncReleaseLibJars") {
+            def variant = name.contains("Debug") ? "debug" : "release"
+            def dir = file("${buildDir}/intermediates/annotations_typedef_file/${variant}")
+            dir.mkdirs()
+            new File(dir, "typedefs.txt").text = ""
+        }
+    }
+}
+
+subprojects {
+    configurations.all {
+        resolutionStrategy {
+            force "org.jetbrains.kotlin:kotlin-stdlib:1.8.22"
+            force "org.jetbrains.kotlin:kotlin-stdlib-common:1.8.22"
+            force "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22"
+            force "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22"
+            force "androidx.activity:activity:1.8.1"
+            force "androidx.annotation:annotation:1.2.0"
+            force "androidx.annotation:annotation-experimental:1.3.0"
+            force "androidx.tracing:tracing:1.2.0"
+            force "androidx.window:window-java:1.2.0"
+            force "androidx.lifecycle:lifecycle-common:2.7.0"
+            force "androidx.lifecycle:lifecycle-common-java8:2.7.0"
+            force "androidx.lifecycle:lifecycle-process:2.7.0"
+            force "androidx.core:core:1.13.1"
+            force "androidx.fragment:fragment:1.7.1"
+            force "androidx.lifecycle:lifecycle-livedata:2.7.0"
+            force "androidx.lifecycle:lifecycle-livedata-core-ktx:2.7.0"
+            force "androidx.lifecycle:lifecycle-runtime:2.7.0"
+            force "androidx.lifecycle:lifecycle-runtime-ktx:2.7.0"
+            force "androidx.lifecycle:lifecycle-viewmodel:2.7.0"
+            force "androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0"
+            force "androidx.savedstate:savedstate:1.2.1"
+            force "androidx.window:window:1.2.0"
+        }
+    }
+}
+
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
+}

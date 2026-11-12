@@ -1,0 +1,7 @@
+# Copy to android/key.properties and fill values. Keep key.properties private.
+# Use the SAME keystore for every update of this app, or Android will refuse
+# the update and users may uninstall/reinstall and lose local data.
+storePassword=CHANGE_ME
+keyPassword=CHANGE_ME
+keyAlias=upload
+storeFile=app/upload-keystore.jks

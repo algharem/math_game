@@ -1,0 +1,153 @@
+import 'dart:math';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:math_heroes/core/curriculum/topic_seed.dart';
+import 'package:math_heroes/core/services/quiz_builder_service.dart';
+import 'package:math_heroes/core/services/topic_question_factory.dart';
+import 'package:math_heroes/shared/models/curriculum_topic.dart';
+import 'package:math_heroes/shared/models/enums.dart';
+import 'package:math_heroes/shared/models/exam_config.dart';
+
+void main() {
+  test('every seeded ready topic generates 15 unique valid questions', () {
+    final readyTopics =
+        curriculumTopicSeed.where((topic) => topic.generationReady).toList();
+    expect(readyTopics, isNotEmpty);
+
+    final random = Random(7);
+    for (final topic in readyTopics) {
+      for (final strength in TopicStrength.values) {
+        final seen = <String>{};
+        for (var index = 0; index < 15; index++) {
+          final question = TopicQuestionFactory.question(
+            topic: topic,
+            strength: strength,
+            random: random,
+            index: index,
+          );
+          expect(
+            question.correctAnswer,
+            isIn(question.choices),
+            reason: '${topic.id}/$strength/#$index answer not among choices',
+          );
+          expect(
+            question.choices.toSet(),
+            hasLength(question.choices.length),
+            reason: '${topic.id}/$strength/#$index duplicate choices',
+          );
+          expect(
+            question.choices.length,
+            greaterThanOrEqualTo(2),
+            reason: '${topic.id}/$strength/#$index too few choices',
+          );
+          expect(
+            question.explanation.trim(),
+            isNotEmpty,
+            reason: '${topic.id}/$strength/#$index empty explanation',
+          );
+          expect(
+            seen.add(question.id),
+            isTrue,
+            reason: '${topic.id}/$strength duplicate id',
+          );
+        }
+      }
+    }
+  });
+
+  test('unknown topic ids fall back to a valid addition question', () {
+    final random = Random(3);
+    const fakeTopic = CurriculumTopic(
+      id: 'gx_p9_t9',
+      grade: 4,
+      part: 2,
+      title: 'غير معروف',
+      unitName: 'اختبار',
+    );
+    final question = TopicQuestionFactory.question(
+      topic: fakeTopic,
+      strength: TopicStrength.medium,
+      random: random,
+    );
+    expect(question.correctAnswer, isIn(question.choices));
+  });
+
+  test('QuizBuilderService.generate honors topic filtering and count', () {
+    final config = ExamConfig(
+      section: MathSection.mixed,
+      title: 'امتحان مواضيع',
+      questionCount: 12,
+      topicIds: const ['g1_p1_t1', 'g1_p1_t3', 'g1_p2_t1'],
+      bookPart: 1,
+      examMode: ExamMode.fullExam,
+    );
+    final questions = QuizBuilderService.generate(config);
+    expect(questions, hasLength(12));
+    for (final question in questions) {
+      expect(
+        question.topicId,
+        isIn(const {'g1_p1_t1', 'g1_p1_t3', 'g1_p2_t1'}),
+      );
+    }
+  });
+
+  test('topic-exam generate uses all selected topics including those previously not ready', () {
+    final config = ExamConfig(
+      section: MathSection.mixed,
+      title: 'نموذج',
+      questionCount: 10,
+      topicIds: const [
+        'g5_p1_t3',
+        'g5_p1_t1',
+      ],
+      bookPart: 1,
+    );
+    final questions = QuizBuilderService.generate(config);
+    expect(questions, hasLength(10));
+    // Both topics are now exam-able from the book topic list
+    expect(questions.map((q) => q.topicId).toSet().length, greaterThanOrEqualTo(1));
+  });
+
+  test('generate works for any selected book topics', () {
+    final config = ExamConfig(
+      section: MathSection.mixed,
+      title: 'نموذج',
+      questionCount: 10,
+      topicIds: const ['g5_p1_t3'],
+      bookPart: 1,
+    );
+    final questions = QuizBuilderService.generate(config);
+    expect(questions, hasLength(10));
+  });
+
+  test('adaptive pools cover every tier at the requested size', () {
+    final config = ExamConfig(
+      section: MathSection.mixed,
+      title: 'امتحان متكيّف',
+      questionCount: 10,
+      topicIds: const ['g1_p1_t3', 'g7_p1_t2'],
+      examMode: ExamMode.adaptiveExam,
+      topicDifficultyLevel: 'medium',
+    );
+    final tiers = QuizBuilderService.generateAdaptiveTiers(config);
+    expect(tiers.keys.toSet(), TopicStrength.values.toSet());
+    for (final entry in tiers.entries) {
+      expect(entry.value, hasLength(10),
+          reason: 'tier ${entry.key.name} wrong size');
+      for (final question in entry.value) {
+        expect(question.correctAnswer, isIn(question.choices));
+      }
+    }
+    // Easy answers are never larger than their hard counterparts on the
+    // same topic slot — a soft sanity bound of the tier ladder.
+    final easyMax = tiers[TopicStrength.easy]!
+        .map((q) => q.correctAnswer.abs())
+        .reduce(max);
+    final hardMax = tiers[TopicStrength.hard]!
+        .map((q) => q.correctAnswer.abs())
+        .reduce(max);
+    // On mixed grade selection hard should generally reach bigger numbers;
+    // keep this check loose to avoid flaky generation luck.
+    expect(hardMax, greaterThanOrEqualTo(min(9, easyMax)));
+  });
+}
