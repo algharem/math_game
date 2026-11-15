@@ -49,3 +49,7 @@ app.*.map.json
 /android/app/upload-keystore.jks
 /android/app/*.keystore
 /android/app/*.jks
+
+# Firebase config contains the API key; keep it local (use the Firebase
+# console / CI secrets to provision it on build machines).
+**/google-services.json
