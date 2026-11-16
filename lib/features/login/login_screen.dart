@@ -128,32 +128,44 @@ class LoginScreen extends ConsumerWidget {
     AccountSummary account,
   ) async {
     ref.read(audioServiceProvider).play(SoundEffect.tap);
-    
-    // Capture context before any async operations
-    final currentContext = context;
-    
+
+    // Capture navigator before any async operations so the dialog does
+    // not depend on a possibly unmounted BuildContext after awaits.
+    final navigator = Navigator.of(context, rootNavigator: true);
+
     // Check if biometric is available and enabled for this user
     final biometricService = ref.read(biometricServiceProvider);
     final biometricAvailable = await biometricService.isBiometricAvailable();
-    final biometricEnabled = await biometricService.isBiometricEnabled(account.id);
-    final recentlyAuthenticated = await biometricService.wasRecentlyAuthenticated(account.id);
-    
+    final biometricEnabled =
+        await biometricService.isBiometricEnabled(account.id);
+    final recentlyAuthenticated =
+        await biometricService.wasRecentlyAuthenticated(account.id);
+
     // Show biometric option if available, enabled, and not recently authenticated
     if (biometricAvailable && biometricEnabled && !recentlyAuthenticated) {
-      final useBiometric = await showDialog<bool>(
-        context: currentContext,
-        builder: (context) => _BiometricChoiceDialog(account: account),
+      // `navigator` was captured before the awaits above; the dialog is
+      // pushed on that stable NavigatorState regardless of whether the
+      // original widget unmounted mid-flow.
+      final useBiometric = await navigator.push<bool>(
+        PageRouteBuilder<bool>(
+          opaque: false,
+          barrierDismissible: true,
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              _BiometricChoiceDialog(account: account),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+              FadeTransition(opacity: animation, child: child),
+        ),
       );
-      
-      if (useBiometric == true && currentContext.mounted) {
-        await _loginWithBiometric(currentContext, ref, account);
+
+      if (useBiometric == true && context.mounted) {
+        await _loginWithBiometric(context, ref, account);
         return;
       }
     }
-    
-    // Fall back to password login if context is still valid
-    if (currentContext.mounted) {
-      await _loginWithPassword(currentContext, ref, account);
+
+    // Fall back to password login if the widget is still mounted
+    if (context.mounted) {
+      await _loginWithPassword(context, ref, account);
     }
   }
 
@@ -181,7 +193,7 @@ class LoginScreen extends ConsumerWidget {
       userId: account.id,
       localizedReason: 'تسجيل دخول ${account.displayName}',
     );
-    
+
     if (!authenticated) {
       // If biometric fails, fall back to password if context is still valid
       if (context.mounted) {
@@ -189,11 +201,11 @@ class LoginScreen extends ConsumerWidget {
       }
       return;
     }
-    
+
     final result = await ref.read(authProvider.notifier).loginWithBiometric(
-      userId: account.id,
-    );
-    
+          userId: account.id,
+        );
+
     if (result.session == null) {
       if (context.mounted) {
         showAppSnack(
@@ -205,7 +217,7 @@ class LoginScreen extends ConsumerWidget {
       }
       return;
     }
-    
+
     if (context.mounted) {
       await _completeLogin(context, ref, result.session!);
     }
@@ -260,102 +272,105 @@ class _StudentLoginCard extends StatelessWidget {
         height: 200, // Fixed height keeps grid tiles uniform
         child: ListView(
           children: [
-          Container(
-            width: 74,
-            height: 74,
-            padding: const EdgeInsets.all(7),
-            decoration: const BoxDecoration(
-              color: AppColors.sunSoft,
-              shape: BoxShape.circle,
-            ),
-            child: Image.asset(
-              avatar,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) => CircleAvatar(
-                backgroundColor: AppColors.skySoft,
-                child: Text(
-                  account.initial,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: AppColors.skyDeep,
-                      ),
+            Container(
+              width: 74,
+              height: 74,
+              padding: const EdgeInsets.all(7),
+              decoration: const BoxDecoration(
+                color: AppColors.sunSoft,
+                shape: BoxShape.circle,
+              ),
+              child: Image.asset(
+                avatar,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) => CircleAvatar(
+                  backgroundColor: AppColors.skySoft,
+                  child: Text(
+                    account.initial,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          color: AppColors.skyDeep,
+                        ),
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 9),
-          Text(
-            account.displayName,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            schoolGradeLabel(account.schoolGrade),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.mutedForeground,
-                ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: AppColors.leafSoft,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              'المستوى ${ArabicNumbers.formatInt(account.currentLevel)}',
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: AppColors.leafDeep,
-                  ),
-            ),
-          ),
-          if (account.needsPassword) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 9),
             Text(
-              'أول دخول: عيّن كلمة مرور',
+              account.displayName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              schoolGradeLabel(account.schoolGrade),
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.coralDeep,
-                    fontSize: 11,
+                    color: AppColors.mutedForeground,
                   ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: AppColors.leafSoft,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                'المستوى ${ArabicNumbers.formatInt(account.currentLevel)}',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: AppColors.leafDeep,
+                    ),
+              ),
+            ),
+            if (account.needsPassword) ...[
+              const SizedBox(height: 6),
+              Text(
+                'أول دخول: عيّن كلمة مرور',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.coralDeep,
+                      fontSize: 11,
+                    ),
+              ),
+            ],
+            Consumer(
+              builder: (context, ref, child) {
+                return FutureBuilder<bool>(
+                  future: ref
+                      .read(biometricServiceProvider)
+                      .isBiometricEnabled(account.id),
+                  builder: (context, snapshot) {
+                    final biometricEnabled = snapshot.data ?? false;
+                    if (!biometricEnabled) return const SizedBox.shrink();
+
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.fingerprint_rounded,
+                            size: 14,
+                            color: AppColors.leaf,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'البصمة مفعلة',
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: AppColors.leaf,
+                                      fontSize: 11,
+                                    ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
             ),
           ],
-          Consumer(
-            builder: (context, ref, child) {
-              return FutureBuilder<bool>(
-                future: ref.read(biometricServiceProvider).isBiometricEnabled(account.id),
-                builder: (context, snapshot) {
-                  final biometricEnabled = snapshot.data ?? false;
-                  if (!biometricEnabled) return const SizedBox.shrink();
-                  
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.fingerprint_rounded,
-                          size: 14,
-                          color: AppColors.leaf,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'البصمة مفعلة',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.leaf,
-                                fontSize: 11,
-                              ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-        ],
+        ),
       ),
-    ),
     );
   }
 }
@@ -647,7 +662,6 @@ class _RemoteParentCard extends StatelessWidget {
   }
 }
 
-
 class _BiometricChoiceDialog extends ConsumerWidget {
   const _BiometricChoiceDialog({required this.account});
 
@@ -662,7 +676,7 @@ class _BiometricChoiceDialog extends ConsumerWidget {
         final biometricName = snapshot.hasData && snapshot.data!.isNotEmpty
             ? biometricService.getBiometricDisplayName(snapshot.data!)
             : 'البصمة';
-        
+
         return AlertDialog(
           title: Row(
             children: [
