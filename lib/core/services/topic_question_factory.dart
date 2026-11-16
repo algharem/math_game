@@ -6,6 +6,7 @@ import '../../shared/models/question.dart';
 import '../utils/arabic_number_words.dart';
 import '../utils/arabic_numbers.dart';
 import '../utils/id_generator.dart';
+import '../utils/mixed_number_generator.dart';
 
 /// Per-topic numeric envelope (operands bounds) for question generation.
 class TopicEnvelope {
@@ -147,6 +148,7 @@ class TopicQuestionFactory {
     required String explanation,
     String? spokenText,
     int index = 0,
+    MixedNumberQuestion? mixedNumber,
   }) {
     return Question(
       id: '${IdGenerator.next()}-$index',
@@ -159,6 +161,7 @@ class TopicQuestionFactory {
       spokenText: spokenText,
       topicId: topic.id,
       topicLabel: '${topic.title} (${topic.unitName})',
+      mixedNumber: mixedNumber,
     );
   }
 
@@ -1476,52 +1479,31 @@ class TopicQuestionFactory {
     );
   }
 
-  /// Mixed numbers: w1 + n1/d + w2 + n2/d with the fractional parts summing
-  /// to ≤ (d−1)/d so the result stays a proper mixed number (grade-4 range).
+  /// Mixed numbers: uses [MixedNumberGenerator] so the question, its four
+  /// visual choices, and the correct-answer index all come from one source.
   static Question _mixedNumberAddSub(
     CurriculumTopic topic,
     Random random,
     int index,
   ) {
-    final denominator = _rand(random, 4, 8);
-    final whole1 = _rand(random, 1, 5);
-    final whole2 = _rand(random, 1, 5);
-    final num1 = _rand(random, 1, denominator - 2);
-    final num2 = _rand(random, 1, denominator - 1 - num1);
-    final fracSum = num1 + num2;
-    final totalWhole = whole1 + whole2;
-    final g = _fracGcd(fracSum, denominator);
-    final reducedNum = fracSum ~/ g;
-    final reducedDen = denominator ~/ g;
-    final resultStr = _fracStr(reducedNum, reducedDen);
-    final mixedStr = '$totalWhole و$reducedNum/$reducedDen';
-    final answer = fracSum; // encode answer as the resulting numerator part
-    final explanation =
-        'نجمع الأجزاء الصحيحة: $whole1 + $whole2 = $totalWhole، '
-        'ونجمع الكسرين: $num1/$denominator + $num2/$denominator = $fracSum/$denominator'
-        '${fracSum == reducedNum ? '' : ' = $resultStr بعد التبسيط'}، '
-        'فالناتج $mixedStr.';
-    return base(
+    final generated = MixedNumberGenerator(random: random).generateQuestion();
+    final question = base(
       topic: topic,
-      kind: QuestionKind.fractionOps,
-      tokens: [
-        '$whole1 و$num1/$denominator',
-        '+',
-        '$whole2 و$num2/$denominator',
-        '=',
-        '؟',
-      ],
-      answer: answer,
-      choices: _choices(answer, random, candidates: [
-        answer + 1,
-        denominator,
-        answer > 1 ? answer - 1 : answer + 2,
-      ]),
+      kind: QuestionKind.mixedNumber,
+      tokens: [generated.questionText],
+      answer: generated.correctIndex,
+      choices: List<int>.generate(
+        generated.choices.length,
+        (choiceIndex) => choiceIndex,
+      ),
       random: random,
-      explanation: explanation,
-      spokenText:
-          'اجمع العددين الكسريين: $whole1 و$num1 على $denominator زائد $whole2 و$num2 على $denominator',
+      explanation: generated.explanation,
+      spokenText: generated.spokenText,
       index: index,
+      mixedNumber: generated,
+    );
+    return question.copyWith(
+      factKey: '${topic.id}:${generated.correctAnswer.toArabicString()}',
     );
   }
 

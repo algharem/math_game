@@ -1002,8 +1002,12 @@ class AppDatabase extends _$AppDatabase {
             questionKind: answer.question.kind.name,
             factKey: Value(answer.question.factKey),
             questionText: answer.question.equationText,
-            childAnswer: Value(answer.childAnswer?.toString()),
-            correctAnswer: answer.question.correctAnswer.toString(),
+            childAnswer: Value(
+              answer.childAnswer == null
+                  ? null
+                  : answer.question.choiceText(answer.childAnswer),
+            ),
+            correctAnswer: answer.question.answerText,
             isCorrect: answer.isCorrect,
             explanation: answer.question.explanation,
             timeSpentSeconds: Value(answer.timeSpentSeconds),

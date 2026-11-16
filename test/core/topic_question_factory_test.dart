@@ -149,8 +149,52 @@ void main() {
       expect(q.tokens, isNotEmpty);
       seenKinds.add(q.kind);
     }
-    // All fractions questions are MCQs in the fractionOps section.
+    // Both plain fraction and visual mixed-number questions are generated.
     expect(seenKinds, contains(QuestionKind.fractionOps));
+    expect(seenKinds, contains(QuestionKind.mixedNumber));
+  });
+
+  test('grade-4 mixed-number questions carry a valid visual payload', () {
+    const topic = CurriculumTopic(
+      id: 'g4_p2_t5',
+      grade: 4,
+      part: 2,
+      title: 'الكسور العادية (اختبار)',
+      unitName: 'الكسور',
+    );
+    final random = Random(17);
+    var mixedFound = false;
+    for (var index = 0; index < 80 && !mixedFound; index++) {
+      final q = TopicQuestionFactory.question(
+        topic: topic,
+        strength: TopicStrength.medium,
+        random: random,
+        index: index,
+      );
+      final mixed = q.mixedNumber;
+      if (mixed == null) continue;
+      mixedFound = true;
+
+      expect(q.kind, QuestionKind.mixedNumber);
+      expect(q.isMixedNumber, isTrue);
+      expect(q.correctAnswer, mixed.correctIndex);
+      expect(q.correctAnswer, isIn(q.choices));
+      expect(q.choices, List<int>.generate(mixed.choices.length, (i) => i));
+      expect(q.explanation, mixed.explanation);
+      expect(q.spokenText, mixed.spokenText);
+      expect(q.answerText, mixed.correctAnswer.toArabicString());
+      expect(
+        q.choiceText(q.correctAnswer),
+        mixed.correctAnswer.toArabicString(),
+      );
+      expect(q.isCorrect(q.correctAnswer), isTrue);
+      expect(
+        q.isCorrect((q.correctAnswer + 1) % mixed.choices.length),
+        isFalse,
+      );
+    }
+    expect(mixedFound, isTrue,
+        reason: 'no mixed-number question generated for g4_p2_t5');
   });
 
   test('adaptive pools cover every tier at the requested size', () {

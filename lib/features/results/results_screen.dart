@@ -474,9 +474,6 @@ class _ReviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final correct = answer.isCorrect;
-    final childAnswer = answer.childAnswer == null
-        ? 'لم تجب'
-        : ArabicNumbers.formatInt(answer.childAnswer!);
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -504,7 +501,9 @@ class _ReviewCard extends StatelessWidget {
           ),
         ),
         title: Directionality(
-          textDirection: TextDirection.ltr,
+          textDirection: answer.question.isMixedNumber
+              ? TextDirection.rtl
+              : TextDirection.ltr,
           child: Text(
             answer.question.equationText,
             style: Theme.of(context).textTheme.titleMedium,
@@ -513,7 +512,7 @@ class _ReviewCard extends StatelessWidget {
         subtitle: Text(
           correct
               ? 'إجابة صحيحة'
-              : 'إجابتك: $childAnswer • الصحيحة: ${ArabicNumbers.formatInt(answer.question.correctAnswer)}',
+              : 'إجابتك: ${answer.childAnswerText} • الصحيحة: ${answer.question.answerText}',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: correct ? AppColors.leafDeep : AppColors.coralDeep,
               ),

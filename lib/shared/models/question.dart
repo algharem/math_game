@@ -1,4 +1,5 @@
 import '../../core/utils/arabic_numbers.dart';
+import '../../core/utils/mixed_number_generator.dart';
 import 'enums.dart';
 
 class Question {
@@ -13,6 +14,7 @@ class Question {
     this.spokenText,
     this.topicLabel,
     this.topicId,
+    this.mixedNumber,
   });
 
   final String id;
@@ -24,6 +26,11 @@ class Question {
   final String? factKey;
   final String? spokenText;
 
+  /// Optional visual mixed-number payload. When present, [choices] are
+  /// indices into [MixedNumberQuestion.choices] and [correctAnswer] is the
+  /// index of the generated correct choice.
+  final MixedNumberQuestion? mixedNumber;
+
   /// Optional curriculum context, e.g. «الوحدة الخامسة: الكسور • ضرب الكسور».
   final String? topicLabel;
 
@@ -32,6 +39,8 @@ class Question {
   final String? topicId;
 
   MathSection get section => kind.section;
+
+  bool get isMixedNumber => mixedNumber != null;
 
   String get equationText => tokens
       .map(
@@ -43,17 +52,41 @@ class Question {
       )
       .join(' ');
 
-  String get solvedEquationText => tokens
-      .map(
-        (token) => token == null
-            ? ArabicNumbers.formatInt(correctAnswer)
-            : token is int
-                ? ArabicNumbers.formatInt(token)
-                : token.toString(),
-      )
-      .join(' ');
+  String get solvedEquationText {
+    final mixed = mixedNumber;
+    if (mixed != null) {
+      return mixed.questionText.replaceFirst(
+        '؟',
+        mixed.correctAnswer.toArabicString(),
+      );
+    }
+    return tokens
+        .map(
+          (token) => token == null
+              ? ArabicNumbers.formatInt(correctAnswer)
+              : token is int
+                  ? ArabicNumbers.formatInt(token)
+                  : token.toString(),
+        )
+        .join(' ');
+  }
 
-  String get answerText => ArabicNumbers.formatInt(correctAnswer);
+  String get answerText {
+    final mixed = mixedNumber;
+    if (mixed != null) return mixed.correctAnswer.toArabicString();
+    return ArabicNumbers.formatInt(correctAnswer);
+  }
+
+  /// Text for one choice value. Mixed-number questions store choice indices
+  /// in [choices], so the label comes from the generated visual payload.
+  String choiceText(int? choice) {
+    if (choice == null) return '—';
+    final mixed = mixedNumber;
+    if (mixed != null && choice >= 0 && choice < mixed.choices.length) {
+      return mixed.choices[choice].toArabicString();
+    }
+    return ArabicNumbers.formatInt(choice);
+  }
 
   String get readAloudText {
     if (spokenText != null) return spokenText!;
@@ -83,7 +116,12 @@ class Question {
     return '${buffer.toString().trim()}؟';
   }
 
-  bool isCorrect(int? answer) => answer != null && answer == correctAnswer;
+  bool isCorrect(int? answer) {
+    if (answer == null) return false;
+    final mixed = mixedNumber;
+    if (mixed != null) return mixed.isCorrectChoice(answer);
+    return answer == correctAnswer;
+  }
 
   Question copyWith({
     String? id,
@@ -96,6 +134,7 @@ class Question {
     String? spokenText,
     String? topicLabel,
     String? topicId,
+    MixedNumberQuestion? mixedNumber,
   }) {
     return Question(
       id: id ?? this.id,
@@ -108,6 +147,7 @@ class Question {
       spokenText: spokenText ?? this.spokenText,
       topicLabel: topicLabel ?? this.topicLabel,
       topicId: topicId ?? this.topicId,
+      mixedNumber: mixedNumber ?? this.mixedNumber,
     );
   }
 }

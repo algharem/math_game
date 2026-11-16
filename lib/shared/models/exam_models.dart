@@ -18,8 +18,7 @@ class ExamAnswer {
 
   bool get isUnanswered => childAnswer == null;
 
-  String get childAnswerText =>
-      childAnswer == null ? '—' : childAnswer.toString();
+  String get childAnswerText => question.choiceText(childAnswer);
 }
 
 class ExamResultData {

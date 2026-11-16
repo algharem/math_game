@@ -95,6 +95,7 @@ enum QuestionKind {
   pythagoras,
   // Full-book-coverage kinds (every topic exam-able):
   fractionOps,
+  mixedNumber,
   percentCalc,
   unitConversion,
   statisticsMeasure,
@@ -134,6 +135,7 @@ extension QuestionKindX on QuestionKind {
       case QuestionKind.cubeRoot:
       case QuestionKind.pythagoras:
       case QuestionKind.fractionOps:
+      case QuestionKind.mixedNumber:
       case QuestionKind.percentCalc:
       case QuestionKind.unitConversion:
       case QuestionKind.statisticsMeasure:

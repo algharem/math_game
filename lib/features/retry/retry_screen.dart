@@ -71,7 +71,9 @@ class RetryScreen extends ConsumerWidget {
                         children: [
                           Expanded(
                             child: Directionality(
-                              textDirection: TextDirection.ltr,
+                              textDirection: answer.question.isMixedNumber
+                                  ? TextDirection.rtl
+                                  : TextDirection.ltr,
                               child: Text(
                                 answer.question.equationText,
                                 style: Theme.of(context).textTheme.titleLarge,
@@ -79,7 +81,7 @@ class RetryScreen extends ConsumerWidget {
                             ),
                           ),
                           Text(
-                            'الصحيحة: ${ArabicNumbers.formatInt(answer.question.correctAnswer)}',
+                            'الصحيحة: ${answer.question.answerText}',
                             style: Theme.of(context)
                                 .textTheme
                                 .labelLarge

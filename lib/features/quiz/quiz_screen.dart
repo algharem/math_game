@@ -11,6 +11,7 @@ import '../../core/services/quiz_builder_service.dart';
 import '../../core/services/topic_question_factory.dart';
 import '../../core/utils/arabic_numbers.dart';
 import '../../core/utils/id_generator.dart';
+import '../../core/utils/mixed_number_generator.dart';
 import '../../core/utils/number_parser.dart';
 import '../../shared/models/enums.dart';
 import '../../shared/models/exam_models.dart';
@@ -18,6 +19,7 @@ import '../../shared/models/question.dart';
 import '../../shared/models/quiz_launch_data.dart';
 import '../../shared/models/reward_rules.dart';
 import '../../shared/widgets/app_widgets.dart';
+import '../../widgets/mixed_number_widget.dart';
 
 class QuizScreen extends ConsumerStatefulWidget {
   const QuizScreen({super.key, required this.launchData});
@@ -183,28 +185,35 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     });
   }
 
+  /// Mixed-number questions are always answered by selecting one of the
+  /// generated visual choices, even if the exam was configured for typing.
+  bool get _isChoiceMode =>
+      _launch.config.answerMode == AnswerMode.multipleChoice ||
+      _question.isMixedNumber;
+
   bool get _canConfirm {
-    if (_launch.config.answerMode == AnswerMode.multipleChoice) {
-      return _selectedChoice != null;
-    }
+    if (_isChoiceMode) return _selectedChoice != null;
     return _typedAnswer.trim().isNotEmpty;
   }
 
   void _confirmAnswer() {
     if (!_canConfirm || _submitting) return;
-    final answer = _launch.config.answerMode == AnswerMode.multipleChoice
-        ? _selectedChoice
-        : NumberParser.parseInt(_typedAnswer);
+    final answer =
+        _isChoiceMode ? _selectedChoice : NumberParser.parseInt(_typedAnswer);
     if (answer == null) {
       showAppSnack(context, 'اكتب الإجابة أولًا.', isError: true);
       return;
     }
     final elapsed = DateTime.now().difference(_questionStartedAt).inSeconds;
+    final mixed = _question.mixedNumber;
+    final isCorrect = mixed == null
+        ? _question.isCorrect(answer)
+        : MixedNumberGenerator.validateChoice(mixed, answer);
     _answers.add(
       ExamAnswer(
         question: _question,
         childAnswer: answer,
-        isCorrect: _question.isCorrect(answer),
+        isCorrect: isCorrect,
         timeSpentSeconds: elapsed.clamp(0, 3600),
       ),
     );
@@ -303,7 +312,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     final config = _launch.config;
     final progress =
         _questions.isEmpty ? 0.0 : (_index + 1) / _questions.length;
-    final isMultipleChoice = config.answerMode == AnswerMode.multipleChoice;
+    final isMultipleChoice = _isChoiceMode;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
@@ -364,18 +373,28 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                 borderColor: AppColors.skySoft,
                 child: Column(
                   children: [
-                    Directionality(
-                      textDirection: TextDirection.ltr,
-                      child: Text(
-                        _question.equationText,
-                        textAlign: TextAlign.center,
-                        style:
-                            Theme.of(context).textTheme.displayMedium?.copyWith(
-                                  color: AppColors.skyDeep,
-                                  fontSize: 42,
-                                ),
+                    if (_question.isMixedNumber)
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: _MixedNumberPrompt(
+                          question: _question.mixedNumber!,
+                        ),
+                      )
+                    else
+                      Directionality(
+                        textDirection: TextDirection.ltr,
+                        child: Text(
+                          _question.equationText,
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context)
+                              .textTheme
+                              .displayMedium
+                              ?.copyWith(
+                                color: AppColors.skyDeep,
+                                fontSize: 42,
+                              ),
+                        ),
                       ),
-                    ),
                     const SizedBox(height: 8),
                     Text(
                       'اختر الإجابة الصحيحة',
@@ -398,11 +417,18 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
               ),
               const SizedBox(height: 18),
               if (isMultipleChoice)
-                _ChoiceGrid(
-                  choices: _question.choices,
-                  selected: _selectedChoice,
-                  onSelected: _selectChoice,
-                )
+                if (_question.isMixedNumber)
+                  _MixedNumberChoiceGrid(
+                    choices: _question.mixedNumber!.choices,
+                    selected: _selectedChoice,
+                    onSelected: _selectChoice,
+                  )
+                else
+                  _ChoiceGrid(
+                    choices: _question.choices,
+                    selected: _selectedChoice,
+                    onSelected: _selectChoice,
+                  )
               else
                 _TypedAnswer(
                   controller: _answerController,
@@ -550,6 +576,152 @@ class _ChoiceButton extends StatelessWidget {
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     color: selected ? Colors.white : AppColors.ink,
                   ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Visual prompt for mixed-number addition/subtraction. The two operands are
+/// rendered with [MixedNumberWidget] so the fraction bar and whole part are
+/// clear for grade-4 students.
+class _MixedNumberPrompt extends StatelessWidget {
+  const _MixedNumberPrompt({required this.question});
+
+  final MixedNumberQuestion question;
+
+  @override
+  Widget build(BuildContext context) {
+    final symbol = question.operation == '+' ? '+' : '−';
+    final symbolStyle = Theme.of(context).textTheme.displaySmall?.copyWith(
+          color: AppColors.skyDeep,
+          fontWeight: FontWeight.w800,
+        );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      textDirection: TextDirection.rtl,
+      children: [
+        _MixedTerm(number: question.num1),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Text(symbol, style: symbolStyle),
+        ),
+        _MixedTerm(number: question.num2),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Text('=', style: symbolStyle),
+        ),
+        Text('؟', style: symbolStyle),
+      ],
+    );
+  }
+}
+
+class _MixedTerm extends StatelessWidget {
+  const _MixedTerm({required this.number});
+
+  final MixedNumber number;
+
+  @override
+  Widget build(BuildContext context) {
+    return MixedNumberWidget(
+      whole: number.whole,
+      numerator: number.numerator,
+      denominator: number.denominator,
+      fontSize: 34,
+      textColor: AppColors.skyDeep,
+    );
+  }
+}
+
+class _MixedNumberChoiceGrid extends StatelessWidget {
+  const _MixedNumberChoiceGrid({
+    required this.choices,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final List<MixedNumber> choices;
+  final int? selected;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 10,
+      crossAxisSpacing: 10,
+      childAspectRatio: 1.9,
+      children: [
+        for (var index = 0; index < choices.length; index++)
+          _MixedNumberChoiceButton(
+            index: index,
+            number: choices[index],
+            selected: selected == index,
+            onTap: () => onSelected(index),
+          ),
+      ],
+    );
+  }
+}
+
+class _MixedNumberChoiceButton extends StatelessWidget {
+  const _MixedNumberChoiceButton({
+    required this.index,
+    required this.number,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final int index;
+  final MixedNumber number;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      label:
+          'الخيار ${ArabicNumbers.formatInt(index + 1)}: ${number.toSpokenString()}',
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.sky : Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: selected ? AppColors.sky : AppColors.border,
+            width: selected ? 2.5 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.sky.withValues(alpha: selected ? 0.22 : 0.04),
+              blurRadius: 14,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(22),
+            onTap: onTap,
+            child: Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: MixedNumberWidget(
+                  whole: number.whole,
+                  numerator: number.numerator,
+                  denominator: number.denominator,
+                  fontSize: 26,
+                  textColor: selected ? Colors.white : AppColors.ink,
+                ),
+              ),
             ),
           ),
         ),
