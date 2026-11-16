@@ -13,6 +13,7 @@ import '../../shared/models/achievements.dart';
 import '../../shared/models/exam_models.dart';
 import '../../shared/models/reward_rules.dart';
 import '../../shared/widgets/app_widgets.dart';
+import '../../widgets/answer_review_line.dart';
 import '../../widgets/fraction_order_widget.dart';
 import '../../widgets/fraction_story_widget.dart';
 import '../../widgets/mixed_number_widget.dart';
@@ -537,13 +538,10 @@ class _ReviewCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
-        subtitle: Text(
-          correct
-              ? 'إجابة صحيحة'
-              : 'إجابتك: ${answer.childAnswerText} • الصحيحة: ${answer.question.answerText}',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: correct ? AppColors.leafDeep : AppColors.coralDeep,
-              ),
+        subtitle: AnswerReviewLine(
+          question: answer.question,
+          childAnswer: answer.childAnswer,
+          correct: correct,
         ),
         children: [
           Align(

@@ -12,6 +12,7 @@ import '../../shared/models/enums.dart';
 import '../../shared/models/exam_models.dart';
 import '../../shared/models/quiz_launch_data.dart';
 import '../../shared/widgets/app_widgets.dart';
+import '../../widgets/answer_review_line.dart';
 import '../../widgets/fraction_order_widget.dart';
 import '../../widgets/fraction_story_widget.dart';
 import '../../widgets/mixed_number_widget.dart';
@@ -118,17 +119,13 @@ class RetryScreen extends ConsumerWidget {
                                         ),
                                       ),
                           ),
-                          if (!answer.question.isVisual)
-                            Text(
-                              'الصحيحة: ${answer.question.answerText}',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelLarge
-                                  ?.copyWith(
-                                    color: AppColors.leafDeep,
-                                  ),
-                            ),
                         ],
+                      ),
+                      const SizedBox(height: 6),
+                      AnswerReviewLine(
+                        question: answer.question,
+                        childAnswer: answer.childAnswer,
+                        correct: answer.isCorrect,
                       ),
                       const SizedBox(height: 6),
                       Text(
