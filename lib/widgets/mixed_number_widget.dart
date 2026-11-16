@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/utils/arabic_numbers.dart';
+import '../core/utils/mixed_number_generator.dart';
 
 /// Renders an Arabic mixed number (whole + proper fraction) with a real
 /// horizontal fraction bar. Works inside the existing quiz choice buttons.
@@ -87,5 +88,69 @@ class MixedNumberWidget extends StatelessWidget {
         '${ArabicNumbers.formatInt(numerator)} على ${ArabicNumbers.formatInt(denominator)}';
     if (!showWhole) return fraction;
     return '${ArabicNumbers.formatInt(whole)} و$fraction';
+  }
+}
+
+/// Full visual expression for a generated mixed-number question:
+/// `num1 ± num2 = answer` (or `= ؟` while the student is answering).
+class MixedNumberExpression extends StatelessWidget {
+  const MixedNumberExpression({
+    super.key,
+    required this.question,
+    this.fontSize = 26,
+    this.textColor = const Color(0xFF2B2D42),
+    this.showResult = false,
+  });
+
+  final MixedNumberQuestion question;
+  final double fontSize;
+  final Color textColor;
+  final bool showResult;
+
+  @override
+  Widget build(BuildContext context) {
+    final symbolStyle = TextStyle(
+      fontSize: fontSize,
+      fontWeight: FontWeight.w800,
+      color: textColor,
+      fontFamily: 'Tajawal',
+    );
+
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          _term(question.num1),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: fontSize * 0.3),
+            child: Text(
+              question.operation == '+' ? '+' : '−',
+              style: symbolStyle,
+            ),
+          ),
+          _term(question.num2),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: fontSize * 0.3),
+            child: Text('=', style: symbolStyle),
+          ),
+          if (showResult)
+            _term(question.correctAnswer)
+          else
+            Text('؟', style: symbolStyle),
+        ],
+      ),
+    );
+  }
+
+  Widget _term(MixedNumber number) {
+    return MixedNumberWidget(
+      whole: number.whole,
+      numerator: number.numerator,
+      denominator: number.denominator,
+      fontSize: fontSize,
+      textColor: textColor,
+    );
   }
 }

@@ -12,6 +12,7 @@ import '../../shared/models/enums.dart';
 import '../../shared/models/exam_models.dart';
 import '../../shared/models/quiz_launch_data.dart';
 import '../../shared/widgets/app_widgets.dart';
+import '../../widgets/mixed_number_widget.dart';
 import '../login/login_screen.dart';
 
 class RetryScreen extends ConsumerWidget {
@@ -70,25 +71,37 @@ class RetryScreen extends ConsumerWidget {
                       Row(
                         children: [
                           Expanded(
-                            child: Directionality(
-                              textDirection: answer.question.isMixedNumber
-                                  ? TextDirection.rtl
-                                  : TextDirection.ltr,
-                              child: Text(
-                                answer.question.equationText,
-                                style: Theme.of(context).textTheme.titleLarge,
-                              ),
+                            child: answer.question.isMixedNumber
+                                ? FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: AlignmentDirectional.centerStart,
+                                    child: MixedNumberExpression(
+                                      question: answer.question.mixedNumber!,
+                                      fontSize: 22,
+                                      textColor: AppColors.skyDeep,
+                                      showResult: true,
+                                    ),
+                                  )
+                                : Directionality(
+                                    textDirection: TextDirection.ltr,
+                                    child: Text(
+                                      answer.question.equationText,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleLarge,
+                                    ),
+                                  ),
+                          ),
+                          if (!answer.question.isMixedNumber)
+                            Text(
+                              'الصحيحة: ${answer.question.answerText}',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelLarge
+                                  ?.copyWith(
+                                    color: AppColors.leafDeep,
+                                  ),
                             ),
-                          ),
-                          Text(
-                            'الصحيحة: ${answer.question.answerText}',
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelLarge
-                                ?.copyWith(
-                                  color: AppColors.leafDeep,
-                                ),
-                          ),
                         ],
                       ),
                       const SizedBox(height: 6),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:math_heroes/core/utils/mixed_number_generator.dart';
 import 'package:math_heroes/widgets/mixed_number_widget.dart';
 
 Widget _wrap(Widget child) {
@@ -55,5 +56,48 @@ void main() {
     final semantics = tester.getSemantics(find.byType(MixedNumberWidget));
     expect(semantics.label, contains('١'));
     expect(semantics.label, contains('على'));
+  });
+
+  group('MixedNumberExpression', () {
+    MixedNumberQuestion question() {
+      return MixedNumberQuestion(
+        num1: const MixedNumber(2, 1, 3),
+        num2: const MixedNumber(1, 1, 3),
+        operation: '+',
+        choices: const [
+          MixedNumber(3, 2, 3),
+          MixedNumber(3, 1, 3),
+        ],
+        correctIndex: 0,
+        questionText: 'أوجد ناتج: ٢ و١/٣ + ١ و١/٣ = ؟',
+        explanation: 'نجمع الأعداد الكسرية.',
+        spokenText: 'أوجد ناتج',
+      );
+    }
+
+    testWidgets('shows both operands and a question mark while answering', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(MixedNumberExpression(question: question())),
+      );
+
+      expect(find.byType(MixedNumberWidget), findsNWidgets(2));
+      expect(find.text('+'), findsOneWidget);
+      expect(find.text('='), findsOneWidget);
+      expect(find.text('؟'), findsOneWidget);
+    });
+
+    testWidgets('renders the visual correct answer when showResult is true', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(MixedNumberExpression(question: question(), showResult: true)),
+      );
+
+      expect(find.byType(MixedNumberWidget), findsNWidgets(3));
+      expect(find.text('='), findsOneWidget);
+      expect(find.text('؟'), findsNothing);
+    });
   });
 }

@@ -594,42 +594,8 @@ class _MixedNumberPrompt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final symbol = question.operation == '+' ? '+' : '−';
-    final symbolStyle = Theme.of(context).textTheme.displaySmall?.copyWith(
-          color: AppColors.skyDeep,
-          fontWeight: FontWeight.w800,
-        );
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      textDirection: TextDirection.rtl,
-      children: [
-        _MixedTerm(number: question.num1),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Text(symbol, style: symbolStyle),
-        ),
-        _MixedTerm(number: question.num2),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Text('=', style: symbolStyle),
-        ),
-        Text('؟', style: symbolStyle),
-      ],
-    );
-  }
-}
-
-class _MixedTerm extends StatelessWidget {
-  const _MixedTerm({required this.number});
-
-  final MixedNumber number;
-
-  @override
-  Widget build(BuildContext context) {
-    return MixedNumberWidget(
-      whole: number.whole,
-      numerator: number.numerator,
-      denominator: number.denominator,
+    return MixedNumberExpression(
+      question: question,
       fontSize: 34,
       textColor: AppColors.skyDeep,
     );

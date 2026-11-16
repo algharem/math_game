@@ -13,6 +13,7 @@ import '../../shared/models/achievements.dart';
 import '../../shared/models/exam_models.dart';
 import '../../shared/models/reward_rules.dart';
 import '../../shared/widgets/app_widgets.dart';
+import '../../widgets/mixed_number_widget.dart';
 import '../login/login_screen.dart';
 
 class ResultsScreen extends ConsumerStatefulWidget {
@@ -500,15 +501,23 @@ class _ReviewCard extends StatelessWidget {
             size: 19,
           ),
         ),
-        title: Directionality(
-          textDirection: answer.question.isMixedNumber
-              ? TextDirection.rtl
-              : TextDirection.ltr,
-          child: Text(
-            answer.question.equationText,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-        ),
+        title: answer.question.isMixedNumber
+            ? FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: AlignmentDirectional.centerStart,
+                child: MixedNumberExpression(
+                  question: answer.question.mixedNumber!,
+                  fontSize: 18,
+                  showResult: true,
+                ),
+              )
+            : Directionality(
+                textDirection: TextDirection.ltr,
+                child: Text(
+                  answer.question.equationText,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
         subtitle: Text(
           correct
               ? 'إجابة صحيحة'
