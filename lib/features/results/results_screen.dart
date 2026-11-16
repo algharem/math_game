@@ -13,6 +13,7 @@ import '../../shared/models/achievements.dart';
 import '../../shared/models/exam_models.dart';
 import '../../shared/models/reward_rules.dart';
 import '../../shared/widgets/app_widgets.dart';
+import '../../widgets/fraction_order_widget.dart';
 import '../../widgets/mixed_number_widget.dart';
 import '../login/login_screen.dart';
 
@@ -511,13 +512,23 @@ class _ReviewCard extends StatelessWidget {
                   showResult: true,
                 ),
               )
-            : Directionality(
-                textDirection: TextDirection.ltr,
-                child: Text(
-                  answer.question.equationText,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
+            : answer.question.isFractionOrder
+                ? FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: AlignmentDirectional.centerStart,
+                    child: FractionOrderPrompt(
+                      question: answer.question.fractionOrder!,
+                      fontSize: 16,
+                      showResult: true,
+                    ),
+                  )
+                : Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: Text(
+                      answer.question.equationText,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
         subtitle: Text(
           correct
               ? 'إجابة صحيحة'

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:math_heroes/core/curriculum/topic_seed.dart';
 import 'package:math_heroes/core/services/quiz_builder_service.dart';
 import 'package:math_heroes/core/services/topic_question_factory.dart';
+import 'package:math_heroes/core/utils/arabic_numbers.dart';
 import 'package:math_heroes/shared/models/curriculum_topic.dart';
 import 'package:math_heroes/shared/models/enums.dart';
 import 'package:math_heroes/shared/models/exam_config.dart';
@@ -165,7 +166,8 @@ void main() {
     final random = Random(17);
     var mixedFound = false;
     var plainFound = false;
-    for (var index = 0; index < 140; index++) {
+    var orderFound = false;
+    for (var index = 0; index < 200; index++) {
       final q = TopicQuestionFactory.question(
         topic: topic,
         strength: TopicStrength.medium,
@@ -173,8 +175,26 @@ void main() {
         index: index,
       );
       final visual = q.mixedNumber;
-      if (visual == null) continue;
+      final order = q.fractionOrder;
+      if (visual == null && order == null) continue;
 
+      if (order != null) {
+        orderFound = true;
+        expect(q.kind, QuestionKind.fractionOps);
+        expect(q.isFractionOrder, isTrue);
+        expect(q.isVisual, isTrue);
+        expect(q.correctAnswer, order.correctRank);
+        expect(q.correctAnswer, isIn(q.choices));
+        expect(q.choices.toSet(), {1, 2, 3, 4});
+        expect(q.explanation, order.explanation);
+        expect(q.spokenText, order.spokenText);
+        expect(q.answerText, ArabicNumbers.formatInt(order.correctRank));
+        expect(q.isCorrect(order.correctRank), isTrue);
+        expect(q.isCorrect(order.correctRank % 4 + 1), isFalse);
+        continue;
+      }
+
+      if (visual == null) continue;
       if (q.kind == QuestionKind.mixedNumber) mixedFound = true;
       if (q.kind == QuestionKind.fractionOps) {
         plainFound = true;
@@ -204,6 +224,8 @@ void main() {
         reason: 'no mixed-number question generated for g4_p2_t5');
     expect(plainFound, isTrue,
         reason: 'no visual plain-fraction question generated for g4_p2_t5');
+    expect(orderFound, isTrue,
+        reason: 'no visual ordering question generated for g4_p2_t5');
   });
 
   test('adaptive pools cover every tier at the requested size', () {

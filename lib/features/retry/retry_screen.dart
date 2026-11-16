@@ -12,6 +12,7 @@ import '../../shared/models/enums.dart';
 import '../../shared/models/exam_models.dart';
 import '../../shared/models/quiz_launch_data.dart';
 import '../../shared/widgets/app_widgets.dart';
+import '../../widgets/fraction_order_widget.dart';
 import '../../widgets/mixed_number_widget.dart';
 import '../login/login_screen.dart';
 
@@ -82,17 +83,31 @@ class RetryScreen extends ConsumerWidget {
                                       showResult: true,
                                     ),
                                   )
-                                : Directionality(
-                                    textDirection: TextDirection.ltr,
-                                    child: Text(
-                                      answer.question.equationText,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleLarge,
-                                    ),
-                                  ),
+                                : answer.question.isFractionOrder
+                                    ? FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        alignment:
+                                            AlignmentDirectional.centerStart,
+                                        child: FractionOrderPrompt(
+                                          question:
+                                              answer.question.fractionOrder!,
+                                          fontSize: 18,
+                                          textColor: AppColors.skyDeep,
+                                          highlightColor: AppColors.skySoft,
+                                          showResult: true,
+                                        ),
+                                      )
+                                    : Directionality(
+                                        textDirection: TextDirection.ltr,
+                                        child: Text(
+                                          answer.question.equationText,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleLarge,
+                                        ),
+                                      ),
                           ),
-                          if (!answer.question.isMixedNumber)
+                          if (!answer.question.isVisual)
                             Text(
                               'الصحيحة: ${answer.question.answerText}',
                               style: Theme.of(context)

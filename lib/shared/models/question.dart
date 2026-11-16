@@ -1,4 +1,5 @@
 import '../../core/utils/arabic_numbers.dart';
+import '../../core/utils/fraction_order_generator.dart';
 import '../../core/utils/mixed_number_generator.dart';
 import 'enums.dart';
 
@@ -15,6 +16,7 @@ class Question {
     this.topicLabel,
     this.topicId,
     this.mixedNumber,
+    this.fractionOrder,
   });
 
   final String id;
@@ -31,6 +33,10 @@ class Question {
   /// index of the generated correct choice.
   final MixedNumberQuestion? mixedNumber;
 
+  /// Optional visual fraction-ordering payload. When present, [choices] hold
+  /// the four 1-based ranks and [correctAnswer] is the target's rank.
+  final FractionOrderQuestion? fractionOrder;
+
   /// Optional curriculum context, e.g. «الوحدة الخامسة: الكسور • ضرب الكسور».
   final String? topicLabel;
 
@@ -41,6 +47,11 @@ class Question {
   MathSection get section => kind.section;
 
   bool get isMixedNumber => mixedNumber != null;
+
+  bool get isFractionOrder => fractionOrder != null;
+
+  /// True when the prompt and/or choices need a custom visual renderer.
+  bool get isVisual => mixedNumber != null || fractionOrder != null;
 
   String get equationText => tokens
       .map(
@@ -60,6 +71,8 @@ class Question {
         mixed.correctAnswer.toArabicString(),
       );
     }
+    final order = fractionOrder;
+    if (order != null) return order.ascendingText;
     return tokens
         .map(
           (token) => token == null
@@ -120,6 +133,8 @@ class Question {
     if (answer == null) return false;
     final mixed = mixedNumber;
     if (mixed != null) return mixed.isCorrectChoice(answer);
+    final order = fractionOrder;
+    if (order != null) return order.isCorrectRank(answer);
     return answer == correctAnswer;
   }
 
@@ -135,6 +150,7 @@ class Question {
     String? topicLabel,
     String? topicId,
     MixedNumberQuestion? mixedNumber,
+    FractionOrderQuestion? fractionOrder,
   }) {
     return Question(
       id: id ?? this.id,
@@ -148,6 +164,7 @@ class Question {
       topicLabel: topicLabel ?? this.topicLabel,
       topicId: topicId ?? this.topicId,
       mixedNumber: mixedNumber ?? this.mixedNumber,
+      fractionOrder: fractionOrder ?? this.fractionOrder,
     );
   }
 }

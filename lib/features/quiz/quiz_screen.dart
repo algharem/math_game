@@ -19,6 +19,7 @@ import '../../shared/models/question.dart';
 import '../../shared/models/quiz_launch_data.dart';
 import '../../shared/models/reward_rules.dart';
 import '../../shared/widgets/app_widgets.dart';
+import '../../widgets/fraction_order_widget.dart';
 import '../../widgets/mixed_number_widget.dart';
 
 class QuizScreen extends ConsumerStatefulWidget {
@@ -185,11 +186,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     });
   }
 
-  /// Mixed-number questions are always answered by selecting one of the
-  /// generated visual choices, even if the exam was configured for typing.
+  /// Visual fraction questions are always answered by selecting one of the
+  /// generated choices, even if the exam was configured for typing.
   bool get _isChoiceMode =>
       _launch.config.answerMode == AnswerMode.multipleChoice ||
-      _question.isMixedNumber;
+      _question.isVisual;
 
   bool get _canConfirm {
     if (_isChoiceMode) return _selectedChoice != null;
@@ -378,6 +379,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                         fit: BoxFit.scaleDown,
                         child: _MixedNumberPrompt(
                           question: _question.mixedNumber!,
+                        ),
+                      )
+                    else if (_question.isFractionOrder)
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: FractionOrderPrompt(
+                          question: _question.fractionOrder!,
+                          fontSize: 30,
+                          textColor: AppColors.skyDeep,
+                          highlightColor: AppColors.skySoft,
                         ),
                       )
                     else

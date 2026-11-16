@@ -5,6 +5,7 @@ import '../../shared/models/enums.dart';
 import '../../shared/models/question.dart';
 import '../utils/arabic_number_words.dart';
 import '../utils/arabic_numbers.dart';
+import '../utils/fraction_order_generator.dart';
 import '../utils/id_generator.dart';
 import '../utils/mixed_number_generator.dart';
 
@@ -149,6 +150,7 @@ class TopicQuestionFactory {
     String? spokenText,
     int index = 0,
     MixedNumberQuestion? mixedNumber,
+    FractionOrderQuestion? fractionOrder,
   }) {
     return Question(
       id: '${IdGenerator.next()}-$index',
@@ -162,6 +164,7 @@ class TopicQuestionFactory {
       topicId: topic.id,
       topicLabel: '${topic.title} (${topic.unitName})',
       mixedNumber: mixedNumber,
+      fractionOrder: fractionOrder,
     );
   }
 
@@ -1465,46 +1468,25 @@ class TopicQuestionFactory {
   }
 
   /// Ordering: 4 like-denominator fractions; the answer is the 1-based rank
-  /// of a highlighted fraction in ascending order (1..4).
+  /// of a highlighted fraction in ascending order (1..4). Uses the visual
+  /// generator so the prompt renders with real fraction bars.
   static Question _fractionOrder(
     CurriculumTopic topic,
     Random random,
     int index,
   ) {
-    final denominator = _rand(random, 5, 10);
-    final nums = <int>{};
-    var guard = 0;
-    while (nums.length < 4 && guard < 100) {
-      nums.add(_rand(random, 1, denominator - 1));
-      guard++;
-    }
-    final list = nums.toList(growable: false)..shuffle(random);
-    final sorted = List<int>.from(list)..sort();
-    final targetIndex = random.nextInt(4);
-    final target = list[targetIndex];
-    final rank = sorted.indexOf(target) + 1;
-    final promptFractions = list.map((n) => '$n/$denominator').join('، ');
+    final generated = FractionOrderGenerator(random: random).generate();
     return base(
       topic: topic,
       kind: QuestionKind.fractionOps,
-      tokens: [
-        'رتّب تصاعدياً:',
-        promptFractions,
-        '— ما ترتيب',
-        '$target/$denominator',
-        '؟',
-      ],
-      answer: rank,
-      choices: _choices(rank, random,
-          candidates: [1, 2, 3, 4].where((r) => r != rank).toList()),
+      tokens: [generated.questionText],
+      answer: generated.correctRank,
+      choices: [1, 2, 3, 4]..shuffle(random),
       random: random,
-      explanation: 'الكسور لها المقام نفسه ($denominator) فنرتّبها حسب البسوط: '
-          '${sorted.map((n) => '$n/$denominator').join(' < ')}. '
-          'إذن ترتيب $target/$denominator تصاعدياً هو: $rank.',
-      spokenText:
-          'رتب الكسور ${list.map((n) => '$n على $denominator').join('، ')} تصاعدياً، '
-          'ما ترتيب $target على $denominator؟',
+      explanation: generated.explanation,
+      spokenText: generated.spokenText,
       index: index,
+      fractionOrder: generated,
     );
   }
 
