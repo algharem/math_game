@@ -128,6 +128,20 @@ class MixedNumberQuestion {
 
   bool get isWordProblem => story != null;
 
+  /// The printed symbol for [operation], e.g. `×` for multiplication.
+  String get operationSymbol {
+    switch (operation) {
+      case '*':
+        return '×';
+      case '/':
+        return '÷';
+      case '-':
+        return '−';
+      default:
+        return operation;
+    }
+  }
+
   MixedNumber get correctAnswer => choices[correctIndex];
 
   bool isCorrect(MixedNumber value) => value == correctAnswer;
@@ -368,6 +382,161 @@ class MixedNumberGenerator {
     );
   }
 
+  /// Generates a plain `a/d ± b/e` question with unlike denominators. The
+  /// result is reduced and every choice is a real fraction, so grade-5
+  /// students see the common-denominator step with fraction bars.
+  MixedNumberQuestion generateUnlikeFractionQuestion({required bool add}) {
+    final firstDenominator =
+        _random.nextInt(maxDenominator - minDenominator + 1) + minDenominator;
+    var secondDenominator =
+        _random.nextInt(maxDenominator - minDenominator + 1) + minDenominator;
+    var guard = 0;
+    while (secondDenominator == firstDenominator && guard < 20) {
+      secondDenominator =
+          _random.nextInt(maxDenominator - minDenominator + 1) + minDenominator;
+      guard++;
+    }
+
+    final firstNumerator = _random.nextInt(firstDenominator - 1) + 1;
+    final secondNumerator = _random.nextInt(secondDenominator - 1) + 1;
+
+    var first = MixedNumber(0, firstNumerator, firstDenominator);
+    var second = MixedNumber(0, secondNumerator, secondDenominator);
+
+    // Subtraction must stay non-negative: order the larger fraction first.
+    if (!add &&
+        firstNumerator * secondDenominator <
+            secondNumerator * firstDenominator) {
+      final temporary = first;
+      first = second;
+      second = temporary;
+    }
+
+    final commonDenominator = (first.denominator * second.denominator) ~/
+        MixedNumber._gcd(first.denominator, second.denominator);
+    final firstScaled = commonDenominator ~/ first.denominator;
+    final secondScaled = commonDenominator ~/ second.denominator;
+    final firstTop = first.numerator * firstScaled;
+    final secondTop = second.numerator * secondScaled;
+    final total = add ? firstTop + secondTop : firstTop - secondTop;
+    final answer = MixedNumber.fromImproper(total, commonDenominator);
+    final wrongTop = add
+        ? first.numerator + second.numerator
+        : (first.numerator - second.numerator).abs();
+
+    final choices = _buildVisualChoices(answer, [
+      // Common mistake: operating on numerators and denominators directly.
+      MixedNumber.fromImproper(
+        wrongTop,
+        first.denominator + second.denominator,
+      ),
+      // Common mistake: using the common denominator without scaling.
+      MixedNumber.fromImproper(wrongTop, commonDenominator),
+      MixedNumber.fromImproper(total + 1, commonDenominator),
+      MixedNumber.fromImproper((total - 1).abs(), commonDenominator),
+    ]);
+    final correctIndex = choices.indexOf(answer);
+
+    final firstText = first.toArabicString();
+    final secondText = second.toArabicString();
+    final commonText = ArabicNumbers.formatInt(commonDenominator);
+    final firstTopText = ArabicNumbers.formatInt(firstTop);
+    final secondTopText = ArabicNumbers.formatInt(secondTop);
+    final totalText = ArabicNumbers.formatInt(total);
+    final answerText = answer.toArabicString();
+    final symbol = add ? '+' : '−';
+    final verb = add ? 'نجمع' : 'نطرح';
+
+    return MixedNumberQuestion(
+      num1: first,
+      num2: second,
+      operation: add ? '+' : '-',
+      choices: choices,
+      correctIndex: correctIndex,
+      questionText: 'أوجد ناتج: $firstText $symbol $secondText = ؟',
+      explanation: 'نوحّد المقامات على $commonText: '
+          '$firstText = $firstTopText/$commonText، و'
+          '$secondText = $secondTopText/$commonText، '
+          'ثم $verb البسطين: $firstTopText $symbol $secondTopText = '
+          '$totalText، والناتج $answerText.',
+      spokenText: 'أوجد ناتج: ${first.toSpokenString()} '
+          '${add ? 'زائد' : 'ناقص'} ${second.toSpokenString()}',
+    );
+  }
+
+  /// Generates a `a/b × c/d` or `a/b ÷ c/d` question whose answer is a real
+  /// fraction, so multiplication/division renders with fraction bars too.
+  MixedNumberQuestion generateFractionMulDivQuestion({
+    required bool multiply,
+  }) {
+    final firstDenominator = _random.nextInt(5) + 2;
+    final secondDenominator = _random.nextInt(5) + 2;
+    final firstNumerator = _random.nextInt(firstDenominator - 1) + 1;
+    final secondNumerator = _random.nextInt(secondDenominator - 1) + 1;
+
+    final first = MixedNumber(0, firstNumerator, firstDenominator);
+    final second = MixedNumber(0, secondNumerator, secondDenominator);
+
+    final total = multiply
+        ? firstNumerator * secondNumerator
+        : firstNumerator * secondDenominator;
+    final denominator = multiply
+        ? firstDenominator * secondDenominator
+        : firstDenominator * secondNumerator;
+    final answer = MixedNumber.fromImproper(total, denominator);
+
+    final choices = _buildVisualChoices(answer, [
+      // Common mistake: adding numerators and denominators instead.
+      MixedNumber.fromImproper(
+        firstNumerator + secondNumerator,
+        firstDenominator + secondDenominator,
+      ),
+      // Common mistake: the other operation.
+      MixedNumber.fromImproper(
+        multiply
+            ? firstNumerator * secondDenominator
+            : firstNumerator * secondNumerator,
+        multiply
+            ? firstDenominator * secondNumerator
+            : firstDenominator * secondDenominator,
+      ),
+      MixedNumber.fromImproper(total + 1, denominator),
+      MixedNumber.fromImproper((total - 1).abs(), denominator),
+    ]);
+    final correctIndex = choices.indexOf(answer);
+
+    final firstText = first.toArabicString();
+    final secondText = second.toArabicString();
+    final numeratorText = ArabicNumbers.formatInt(total);
+    final denominatorText = ArabicNumbers.formatInt(denominator);
+    final answerText = answer.toArabicString();
+    final symbol = multiply ? '×' : '÷';
+
+    final explanation = multiply
+        ? 'نضرب البسط في البسط والمقام في المقام: '
+            '${ArabicNumbers.formatInt(firstNumerator)} × '
+            '${ArabicNumbers.formatInt(secondNumerator)} = $numeratorText، و'
+            '${ArabicNumbers.formatInt(firstDenominator)} × '
+            '${ArabicNumbers.formatInt(secondDenominator)} = '
+            '$denominatorText، أي $numeratorText/$denominatorText، '
+            'ثم نبسّط: $answerText.'
+        : 'نقسم الكسر الأول على الثاني بضربه في مقلوب الثاني: '
+            '$firstText × ${second.denominator}/${second.numerator} = '
+            '$numeratorText/$denominatorText، ثم نبسّط: $answerText.';
+
+    return MixedNumberQuestion(
+      num1: first,
+      num2: second,
+      operation: multiply ? '*' : '/',
+      choices: choices,
+      correctIndex: correctIndex,
+      questionText: 'أوجد ناتج: $firstText $symbol $secondText = ؟',
+      explanation: explanation,
+      spokenText: 'أوجد ناتج: ${first.toSpokenString()} '
+          '${multiply ? 'ضرب' : 'مقسومًا على'} ${second.toSpokenString()}',
+    );
+  }
+
   List<MixedNumber> _buildChoices(
     MixedNumber correct,
     MixedNumber first,
@@ -453,6 +622,40 @@ class MixedNumberGenerator {
           denominator,
         ));
       }
+      guard++;
+    }
+
+    final distractors = pool.sublist(1)..shuffle(_random);
+    final choices = <MixedNumber>[correct, ...distractors.take(3)];
+    choices.shuffle(_random);
+    return choices;
+  }
+
+  /// Builds four unique fraction choices around [correct], preferring the
+  /// plausible distractor [candidates] before filling with random fractions.
+  List<MixedNumber> _buildVisualChoices(
+    MixedNumber correct,
+    List<MixedNumber> candidates,
+  ) {
+    final pool = <MixedNumber>[correct];
+    final keys = <String>{correct.key};
+
+    void add(MixedNumber candidate) {
+      if (candidate.whole < 0 || candidate.numerator < 0) return;
+      if (candidate.denominator <= 0) return;
+      if (candidate.numerator >= candidate.denominator) return;
+      if (candidate.whole == 0 && candidate.numerator == 0) return;
+      if (keys.add(candidate.key)) pool.add(candidate);
+    }
+
+    for (final candidate in candidates) {
+      add(candidate);
+    }
+
+    var guard = 0;
+    while (pool.length < 4 && guard < 200) {
+      final denominator = _random.nextInt(9) + 2;
+      add(MixedNumber(0, _random.nextInt(denominator - 1) + 1, denominator));
       guard++;
     }
 

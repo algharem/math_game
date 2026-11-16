@@ -192,4 +192,121 @@ void main() {
     expect(addCount, greaterThan(0));
     expect(subCount, greaterThan(0));
   });
+
+  test('generateUnlikeFractionQuestion builds solvable unlike-denominator MCQs',
+      () {
+    final generator = MixedNumberGenerator(random: Random(59));
+    var addCount = 0;
+    var subCount = 0;
+
+    for (var i = 0; i < 250; i++) {
+      final add = i.isEven;
+      final q = generator.generateUnlikeFractionQuestion(add: add);
+      add ? addCount++ : subCount++;
+
+      expect(q.num1.denominator, isNot(q.num2.denominator),
+          reason: 'like denominators on iteration $i');
+      expect(q.choices, hasLength(4), reason: 'iteration $i');
+      expect(
+        q.choices.map((choice) => choice.key).toSet(),
+        hasLength(4),
+        reason: 'duplicate choices on iteration $i',
+      );
+      expect(q.choices[q.correctIndex], q.correctAnswer);
+
+      final first = q.num1.toImproperNumerator();
+      final second = q.num2.toImproperNumerator();
+      final firstDen = q.num1.denominator;
+      final secondDen = q.num2.denominator;
+      final expectedNumerator = add
+          ? first * secondDen + second * firstDen
+          : first * secondDen - second * firstDen;
+      final answer = q.correctAnswer;
+      expect(
+        answer.toImproperNumerator() * (firstDen * secondDen),
+        expectedNumerator * answer.denominator,
+        reason: 'wrong unlike answer on iteration $i',
+      );
+      if (!add) {
+        expect(expectedNumerator, greaterThanOrEqualTo(0),
+            reason: 'negative unlike subtraction on iteration $i');
+      }
+
+      for (final choice in q.choices) {
+        expect(choice.whole, greaterThanOrEqualTo(0));
+        expect(choice.numerator, lessThan(choice.denominator));
+        if (choice.key != answer.key) {
+          expect(
+            choice.whole != 0 || choice.numerator != 0,
+            isTrue,
+            reason: 'zero distractor on iteration $i',
+          );
+        }
+      }
+
+      expect(q.questionText, contains('؟'));
+      expect(q.explanation, contains('نوحّد المقامات'));
+      expect(q.spokenText, isNotEmpty);
+    }
+
+    expect(addCount, greaterThan(0));
+    expect(subCount, greaterThan(0));
+  });
+
+  test('generateFractionMulDivQuestion builds solvable visual MCQs', () {
+    final generator = MixedNumberGenerator(random: Random(67));
+    var mulCount = 0;
+    var divCount = 0;
+
+    for (var i = 0; i < 250; i++) {
+      final multiply = i.isEven;
+      final q = generator.generateFractionMulDivQuestion(multiply: multiply);
+      multiply ? mulCount++ : divCount++;
+
+      expect(q.operation, multiply ? '*' : '/');
+      expect(q.operationSymbol, multiply ? '×' : '÷');
+      expect(q.num1.whole, 0);
+      expect(q.num2.whole, 0);
+      expect(q.choices, hasLength(4), reason: 'iteration $i');
+      expect(
+        q.choices.map((choice) => choice.key).toSet(),
+        hasLength(4),
+        reason: 'duplicate choices on iteration $i',
+      );
+      expect(q.choices[q.correctIndex], q.correctAnswer);
+
+      final firstNum = q.num1.numerator;
+      final firstDen = q.num1.denominator;
+      final secondNum = q.num2.numerator;
+      final secondDen = q.num2.denominator;
+      final expectedNumerator =
+          multiply ? firstNum * secondNum : firstNum * secondDen;
+      final expectedDenominator =
+          multiply ? firstDen * secondDen : firstDen * secondNum;
+      final answer = q.correctAnswer;
+      expect(
+        answer.toImproperNumerator() * expectedDenominator,
+        expectedNumerator * answer.denominator,
+        reason: 'wrong mul/div answer on iteration $i',
+      );
+
+      for (final choice in q.choices) {
+        expect(choice.numerator, lessThan(choice.denominator));
+        if (choice.key != answer.key) {
+          expect(
+            choice.whole != 0 || choice.numerator != 0,
+            isTrue,
+            reason: 'zero distractor on iteration $i',
+          );
+        }
+      }
+
+      expect(q.questionText, contains('؟'));
+      expect(q.explanation, isNotEmpty);
+      expect(q.spokenText, isNotEmpty);
+    }
+
+    expect(mulCount, greaterThan(0));
+    expect(divCount, greaterThan(0));
+  });
 }

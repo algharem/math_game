@@ -125,10 +125,7 @@ class MixedNumberExpression extends StatelessWidget {
           _term(question.num1),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: fontSize * 0.3),
-            child: Text(
-              question.operation == '+' ? '+' : '−',
-              style: symbolStyle,
-            ),
+            child: Text(question.operationSymbol, style: symbolStyle),
           ),
           _term(question.num2),
           Padding(

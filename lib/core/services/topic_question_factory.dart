@@ -1657,105 +1657,65 @@ class TopicQuestionFactory {
     );
   }
 
+  /// a/b ± c/d with unlike denominators. Uses the visual fraction generator
+  /// so both the prompt and the four choices render with fraction bars.
   static Question _unlikeFractionOps(
     CurriculumTopic topic,
     TopicEnvelope env,
     Random random,
     int index,
   ) {
-    // a/b + 1/(b·k): answer numerator with the common denominator b·k.
-    final denominator = _rand(random, 2, 6);
-    final multiplier = _rand(random, 2, 4);
-    final numAnswer = denominator * multiplier - 1 > 0
-        ? denominator * multiplier - 1
-        : denominator * multiplier + 1;
-    return base(
+    final generated = MixedNumberGenerator(
+      random: random,
+    ).generateUnlikeFractionQuestion(add: random.nextBool());
+    final question = base(
       topic: topic,
       kind: QuestionKind.fractionOps,
-      tokens: [
-        '$denominator/$denominator',
-        '+',
-        '1/${denominator * multiplier}',
-        '= ? /${denominator * multiplier}',
-      ],
-      answer: numAnswer,
-      choices: _choices(numAnswer, random, candidates: [
-        numAnswer + 1,
-        numAnswer - 1 > 0 ? numAnswer - 1 : numAnswer + 2,
-        denominator * multiplier,
-      ]),
+      tokens: [generated.questionText],
+      answer: generated.correctIndex,
+      choices: List<int>.generate(
+        generated.choices.length,
+        (choiceIndex) => choiceIndex,
+      ),
       random: random,
-      explanation:
-          'توحيد المقامات: $denominator/$denominator = ${denominator * multiplier}/${denominator * multiplier} ثم نجمع',
-      spokenText: 'اجمع الكسرين واختر بسط الناتج بمقام موحّد',
+      explanation: generated.explanation,
+      spokenText: generated.spokenText,
       index: index,
+      mixedNumber: generated,
+    );
+    return question.copyWith(
+      factKey: '${topic.id}:${generated.correctAnswer.toArabicString()}',
     );
   }
 
+  /// a/b × c/d or a/b ÷ c/d with visual fraction choices. The result is a
+  /// reduced fraction (or mixed number), not just a bare numerator.
   static Question _fractionMulDiv(
     CurriculumTopic topic,
     TopicEnvelope env,
     Random random,
     int index,
   ) {
-    final denominatorA = _rand(random, 2, 6);
-    final numeratorA = _rand(random, 1, denominatorA - 1);
-    if (random.nextBool()) {
-      // Division of same-denominator fractions yields an integer.
-      final numeratorB = _rand(random, 1, denominatorA - 1);
-      if (numeratorB > 0 && numeratorA % numeratorB == 0 ||
-          numeratorA > numeratorB && numeratorB < numeratorA) {
-        final answer = numeratorA ~/ numeratorB == 0
-            ? numeratorA
-            : numeratorA ~/ numeratorB;
-        return base(
-          topic: topic,
-          kind: QuestionKind.fractionOps,
-          tokens: [
-            '$numeratorA/$denominatorA',
-            '÷',
-            '$numeratorB/$denominatorA',
-            '؟'
-          ],
-          answer: answer,
-          choices: _choices(answer, random, candidates: [
-            answer + 1,
-            answer + 2,
-            numeratorA,
-          ]),
-          random: random,
-          explanation:
-              'نقسم البسطين والمقامين: ($numeratorA ÷ $numeratorB) = ${ArabicNumbers.formatInt(answer)}',
-          spokenText: 'أوجد ناتج قسمة الكسرين المتشابهين',
-          index: index,
-        );
-      }
-    }
-    // Multiplication: fixed output denominator shows the numerator.
-    final denominatorB = _rand(random, 2, 5);
-    final numeratorB = _rand(random, 1, denominatorB - 1);
-    final outDenominator = denominatorA * denominatorB;
-    final answer = numeratorA * numeratorB;
-    return base(
+    final generated = MixedNumberGenerator(
+      random: random,
+    ).generateFractionMulDivQuestion(multiply: random.nextBool());
+    final question = base(
       topic: topic,
       kind: QuestionKind.fractionOps,
-      tokens: [
-        '$numeratorA/$denominatorA',
-        '×',
-        '$numeratorB/$denominatorB',
-        '= ? /$outDenominator',
-      ],
-      answer: answer,
-      choices: _choices(answer, random, candidates: [
-        answer + numeratorA,
-        answer + numeratorB,
-        answer - 1 > 0 ? answer - 1 : answer + 3,
-      ]),
+      tokens: [generated.questionText],
+      answer: generated.correctIndex,
+      choices: List<int>.generate(
+        generated.choices.length,
+        (choiceIndex) => choiceIndex,
+      ),
       random: random,
-      explanation:
-          'الضرب: البسط في البسط والمقام في المقام = $answer/$outDenominator',
-      spokenText: 'ناتج ضرب الكسرين (اختر بسط الناتج)',
+      explanation: generated.explanation,
+      spokenText: generated.spokenText,
       index: index,
+      mixedNumber: generated,
+    );
+    return question.copyWith(
+      factKey: '${topic.id}:${generated.correctAnswer.toArabicString()}',
     );
   }
 

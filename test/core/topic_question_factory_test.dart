@@ -241,6 +241,71 @@ void main() {
         reason: 'no fraction word problem generated for g4_p2_t5');
   });
 
+  test('grade-5 fraction topics generate visual fraction payloads', () {
+    const topics = [
+      CurriculumTopic(
+        id: 'g5_p1_t3',
+        grade: 5,
+        part: 1,
+        title: 'الكسور الاعتيادية (توحيد المقامات)',
+        unitName: 'الكسور',
+      ),
+      CurriculumTopic(
+        id: 'g5_p2_t1',
+        grade: 5,
+        part: 2,
+        title: 'ضرب وقسمة الكسور الاعتيادية',
+        unitName: 'الكسور',
+      ),
+    ];
+
+    for (final topic in topics) {
+      final random = Random(29);
+      var visualFound = false;
+      var unlikeFound = false;
+      final operations = <String>{};
+
+      for (var index = 0; index < 80; index++) {
+        final q = TopicQuestionFactory.question(
+          topic: topic,
+          strength: TopicStrength.medium,
+          random: random,
+          index: index,
+        );
+        final visual = q.mixedNumber;
+        if (visual == null) continue;
+
+        visualFound = true;
+        operations.add(visual.operation);
+        if (visual.num1.denominator != visual.num2.denominator) {
+          unlikeFound = true;
+        }
+
+        expect(q.isVisual, isTrue, reason: '${topic.id}/$index');
+        expect(q.kind, QuestionKind.fractionOps, reason: '${topic.id}/$index');
+        expect(q.correctAnswer, visual.correctIndex,
+            reason: '${topic.id}/$index');
+        expect(q.correctAnswer, isIn(q.choices), reason: '${topic.id}/$index');
+        expect(
+          q.choices,
+          List<int>.generate(visual.choices.length, (i) => i),
+          reason: '${topic.id}/$index',
+        );
+        expect(q.answerText, visual.correctAnswer.toArabicString());
+        expect(q.isCorrect(q.correctAnswer), isTrue);
+      }
+
+      expect(visualFound, isTrue,
+          reason: '${topic.id} produced no visual fraction questions');
+      if (topic.id == 'g5_p1_t3') {
+        expect(unlikeFound, isTrue);
+        expect(operations, containsAll(<String>{'+', '-'}));
+      } else {
+        expect(operations, containsAll(<String>{'*', '/'}));
+      }
+    }
+  });
+
   test('adaptive pools cover every tier at the requested size', () {
     final config = ExamConfig(
       section: MathSection.mixed,

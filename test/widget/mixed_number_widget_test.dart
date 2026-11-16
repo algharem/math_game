@@ -99,5 +99,26 @@ void main() {
       expect(find.text('='), findsOneWidget);
       expect(find.text('؟'), findsNothing);
     });
+
+    testWidgets('uses the multiplication and division symbols', (tester) async {
+      for (final pair in const [('*', '×'), ('/', '÷')]) {
+        final base = question();
+        final generated = MixedNumberQuestion(
+          num1: base.num1,
+          num2: base.num2,
+          operation: pair.$1,
+          choices: base.choices,
+          correctIndex: base.correctIndex,
+          questionText: base.questionText,
+          explanation: base.explanation,
+          spokenText: base.spokenText,
+        );
+        await tester.pumpWidget(
+          _wrap(MixedNumberExpression(question: generated)),
+        );
+        expect(find.text(pair.$2), findsOneWidget);
+        expect(find.text('؟'), findsOneWidget);
+      }
+    });
   });
 }
