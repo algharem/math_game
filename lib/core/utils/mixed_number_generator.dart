@@ -183,12 +183,77 @@ class MixedNumberGenerator {
     );
   }
 
+  /// Generates a plain `a/d ± b/d` question with like denominators. The
+  /// operands use `whole == 0`, so the same visual widgets render them as
+  /// proper fractions instead of mixed numbers.
+  MixedNumberQuestion generateLikeFractionQuestion({required bool add}) {
+    final denominator =
+        _random.nextInt(maxDenominator - minDenominator + 1) + minDenominator;
+
+    final int firstNumerator;
+    final int secondNumerator;
+    if (add) {
+      // Keep the sum strictly below the denominator so the answer stays a
+      // proper fraction (no whole part).
+      firstNumerator = _random.nextInt(denominator - 2) + 1;
+      secondNumerator = _random.nextInt(denominator - firstNumerator - 1) + 1;
+    } else {
+      // firstNumerator > secondNumerator keeps the result non-negative.
+      firstNumerator = _random.nextInt(denominator - 2) + 2;
+      secondNumerator = _random.nextInt(firstNumerator - 1) + 1;
+    }
+
+    final first = MixedNumber(0, firstNumerator, denominator);
+    final second = MixedNumber(0, secondNumerator, denominator);
+    final operation = add ? '+' : '-';
+    final resultTotal = add
+        ? firstNumerator + secondNumerator
+        : firstNumerator - secondNumerator;
+    final answer = MixedNumber.fromImproper(resultTotal, denominator);
+    final choices = _buildChoices(
+      answer,
+      first,
+      second,
+      operation,
+      properOnly: true,
+    );
+    final correctIndex = choices.indexOf(answer);
+    final operatorSymbol = add ? '+' : '−';
+
+    final firstText = ArabicNumbers.formatInt(firstNumerator);
+    final secondText = ArabicNumbers.formatInt(secondNumerator);
+    final denominatorText = ArabicNumbers.formatInt(denominator);
+    final totalText = ArabicNumbers.formatInt(resultTotal);
+    final answerText = answer.toArabicString();
+
+    final explanation = add
+        ? 'المقامان متساويان ($denominatorText)، فنجمع البسطين: '
+            '$firstText + $secondText = $totalText، والناتج $answerText.'
+        : 'المقامان متساويان ($denominatorText)، ونطرح البسطين: '
+            '$firstText − $secondText = $totalText، والناتج $answerText.';
+
+    return MixedNumberQuestion(
+      num1: first,
+      num2: second,
+      operation: operation,
+      choices: choices,
+      correctIndex: correctIndex,
+      questionText:
+          'أوجد ناتج: ${first.toArabicString()} $operatorSymbol ${second.toArabicString()} = ؟',
+      explanation: explanation,
+      spokenText: add
+          ? 'اجمع الكسرين: $firstText على $denominatorText زائد $secondText على $denominatorText'
+          : 'اطرح الكسرين: $firstText على $denominatorText ناقص $secondText على $denominatorText',
+    );
+  }
+
   List<MixedNumber> _buildChoices(
     MixedNumber correct,
     MixedNumber first,
     MixedNumber second,
-    String operation,
-  ) {
+    String operation, {
+    bool properOnly = false,
+  }) {
     final pool = <MixedNumber>[correct];
     final keys = <String>{correct.key};
 
@@ -199,6 +264,8 @@ class MixedNumberGenerator {
           candidate.numerator >= candidate.denominator) {
         return;
       }
+      // Plain-fraction questions should not offer a zero fraction.
+      if (properOnly && candidate.numerator == 0) return;
       if (keys.add(candidate.key)) pool.add(candidate);
     }
 
@@ -211,9 +278,10 @@ class MixedNumberGenerator {
         : (firstImproper - secondImproper).abs();
     add(MixedNumber.fromImproper(wrongTotal, wrongDenominator));
 
-    // Nearby mixed numbers make plausible distractors.
+    // Nearby numbers make plausible distractors. Plain-fraction questions
+    // keep every choice a proper fraction so the visual style stays uniform.
     for (final delta in const [1, -1, 2, -2, 3]) {
-      if (correct.whole + delta >= 0) {
+      if (!properOnly && correct.whole + delta >= 0) {
         add(MixedNumber(
           correct.whole + delta,
           correct.numerator,
@@ -223,7 +291,7 @@ class MixedNumberGenerator {
       final numerator = correct.numerator + delta;
       if (numerator >= 0 && numerator < correct.denominator) {
         add(MixedNumber(
-          correct.whole,
+          properOnly ? 0 : correct.whole,
           numerator,
           correct.denominator,
         ));
@@ -232,19 +300,38 @@ class MixedNumberGenerator {
 
     var guard = 0;
     while (pool.length < 4 && guard < 200) {
-      add(MixedNumber(
-        _random.nextInt(5),
-        _random.nextInt(correct.denominator),
-        correct.denominator,
-      ));
+      if (properOnly) {
+        final denominator =
+            _random.nextInt(maxDenominator - minDenominator + 1) +
+                minDenominator;
+        add(MixedNumber(
+          0,
+          _random.nextInt(denominator - 1) + 1,
+          denominator,
+        ));
+      } else {
+        add(MixedNumber(
+          _random.nextInt(5),
+          _random.nextInt(correct.denominator),
+          correct.denominator,
+        ));
+      }
       guard++;
     }
     while (pool.length < 4 && guard < 400) {
       final denominator = _random.nextInt(8) + 2;
-      add(MixedNumber.fromImproper(
-        _random.nextInt(denominator * 4),
-        denominator,
-      ));
+      if (properOnly) {
+        add(MixedNumber(
+          0,
+          _random.nextInt(denominator - 1) + 1,
+          denominator,
+        ));
+      } else {
+        add(MixedNumber.fromImproper(
+          _random.nextInt(denominator * 4),
+          denominator,
+        ));
+      }
       guard++;
     }
 

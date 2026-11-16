@@ -1382,27 +1382,9 @@ class TopicQuestionFactory {
   //     fraction in the ascending chain, encoded as a 1-based rank)
   //   • simple fraction word problems
   //
-  // Encoding note: the engine's choices/correctAnswer are ints. Each
-  // question encodes the answer as an integer numerator/denominator/rank;
-  // `tokens` carries the full fraction typography so the UI can render it.
-
-  /// gcd for fraction helpers.
-  static int _fracGcd(int a, int b) {
-    while (b != 0) {
-      final t = a % b;
-      a = b;
-      b = t;
-    }
-    return a.abs();
-  }
-
-  /// Format a fraction (num/den) in lowest terms as an Arabic string like
-  /// '٣/٤'; whole numbers render without a slash. Uses Western digits —
-  /// the UI layer localises digits at render time via ArabicNumbers.
-  static String _fracStr(int num, int den) {
-    if (den == 1) return '$num';
-    return '$num/$den';
-  }
+  // Encoding note: ordering questions keep their 1-based rank as the integer
+  // answer; visual fraction questions attach a `MixedNumberQuestion` payload
+  // (whole == 0 for plain fractions) and use the generated choice index.
 
   static Question _grade4Fractions(
     CurriculumTopic topic,
@@ -1423,59 +1405,34 @@ class TopicQuestionFactory {
     }
   }
 
-  /// a/d ± b/d with a > b for subtraction (no negatives), like denominators.
+  /// a/d ± b/d with like denominators. Uses the visual fraction generator so
+  /// the prompt and the four choices render with real fraction bars.
   static Question _likeFracAddSub(
     CurriculumTopic topic,
     Random random,
     int index, {
     required bool add,
   }) {
-    final denominator = _rand(random, 5, 12);
-    final first = _rand(random, 1, denominator - 1);
-    final int second;
-    if (add) {
-      second = _rand(random, 1, denominator - first);
-    } else {
-      second = _rand(random, 1, first - 1 < 1 ? 1 : first - 1);
-    }
-    final op = add ? '+' : '−';
-    final answerNum = add ? first + second : first - second;
-    // Reduce the result fraction for the explanation.
-    final g = _fracGcd(answerNum, denominator);
-    final reducedNum = answerNum ~/ g;
-    final reducedDen = denominator ~/ g;
-    final resultStr = _fracStr(reducedNum, reducedDen);
-    final rawResultStr = _fracStr(answerNum, denominator);
-    final explanation = add
-        ? 'المقامَان متساويان ($denominator)، فنجمع البسطين: $first + $second = $answerNum، '
-            'والناتج ${rawResultStr == resultStr ? rawResultStr : '$rawResultStr = $resultStr'} بعد '
-            '${rawResultStr == resultStr ? 'المقام ثابت' : 'التبسيط بالقسمة على $g'}'
-        : 'المقامَان متساويان ($denominator)، ونطرح البسطين: $first − $second = $answerNum، '
-            'والناتج $rawResultStr'
-            '${rawResultStr == resultStr ? '' : ' = $resultStr بعد التبسيط بالقسمة على $g'}';
-    final answer = answerNum;
-    return base(
+    final generated = MixedNumberGenerator(
+      random: random,
+    ).generateLikeFractionQuestion(add: add);
+    final question = base(
       topic: topic,
       kind: QuestionKind.fractionOps,
-      tokens: [
-        '$first/$denominator',
-        op,
-        '$second/$denominator',
-        '=',
-        '?/$denominator',
-      ],
-      answer: answer,
-      choices: _choices(answer, random, candidates: [
-        answer + 1,
-        denominator,
-        answer > 1 ? answer - 1 : answer + 2,
-      ]),
+      tokens: [generated.questionText],
+      answer: generated.correctIndex,
+      choices: List<int>.generate(
+        generated.choices.length,
+        (choiceIndex) => choiceIndex,
+      ),
       random: random,
-      explanation: explanation,
-      spokenText: add
-          ? 'اجمع الكسرين: $first على $denominator زائد $second على $denominator'
-          : 'اطرح الكسرين: $first على $denominator ناقص $second على $denominator',
+      explanation: generated.explanation,
+      spokenText: generated.spokenText,
       index: index,
+      mixedNumber: generated,
+    );
+    return question.copyWith(
+      factKey: '${topic.id}:${generated.correctAnswer.toArabicString()}',
     );
   }
 

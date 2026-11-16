@@ -154,7 +154,7 @@ void main() {
     expect(seenKinds, contains(QuestionKind.mixedNumber));
   });
 
-  test('grade-4 mixed-number questions carry a valid visual payload', () {
+  test('grade-4 visual fraction questions carry a valid payload', () {
     const topic = CurriculumTopic(
       id: 'g4_p2_t5',
       grade: 4,
@@ -164,37 +164,46 @@ void main() {
     );
     final random = Random(17);
     var mixedFound = false;
-    for (var index = 0; index < 80 && !mixedFound; index++) {
+    var plainFound = false;
+    for (var index = 0; index < 140; index++) {
       final q = TopicQuestionFactory.question(
         topic: topic,
         strength: TopicStrength.medium,
         random: random,
         index: index,
       );
-      final mixed = q.mixedNumber;
-      if (mixed == null) continue;
-      mixedFound = true;
+      final visual = q.mixedNumber;
+      if (visual == null) continue;
 
-      expect(q.kind, QuestionKind.mixedNumber);
+      if (q.kind == QuestionKind.mixedNumber) mixedFound = true;
+      if (q.kind == QuestionKind.fractionOps) {
+        plainFound = true;
+        // Plain fraction operands must render as proper fractions.
+        expect(visual.num1.whole, 0);
+        expect(visual.num2.whole, 0);
+      }
+
       expect(q.isMixedNumber, isTrue);
-      expect(q.correctAnswer, mixed.correctIndex);
+      expect(q.correctAnswer, visual.correctIndex);
       expect(q.correctAnswer, isIn(q.choices));
-      expect(q.choices, List<int>.generate(mixed.choices.length, (i) => i));
-      expect(q.explanation, mixed.explanation);
-      expect(q.spokenText, mixed.spokenText);
-      expect(q.answerText, mixed.correctAnswer.toArabicString());
+      expect(q.choices, List<int>.generate(visual.choices.length, (i) => i));
+      expect(q.explanation, visual.explanation);
+      expect(q.spokenText, visual.spokenText);
+      expect(q.answerText, visual.correctAnswer.toArabicString());
       expect(
         q.choiceText(q.correctAnswer),
-        mixed.correctAnswer.toArabicString(),
+        visual.correctAnswer.toArabicString(),
       );
       expect(q.isCorrect(q.correctAnswer), isTrue);
       expect(
-        q.isCorrect((q.correctAnswer + 1) % mixed.choices.length),
+        q.isCorrect((q.correctAnswer + 1) % visual.choices.length),
         isFalse,
       );
     }
     expect(mixedFound, isTrue,
         reason: 'no mixed-number question generated for g4_p2_t5');
+    expect(plainFound, isTrue,
+        reason: 'no visual plain-fraction question generated for g4_p2_t5');
   });
 
   test('adaptive pools cover every tier at the requested size', () {

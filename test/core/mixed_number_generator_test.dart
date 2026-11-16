@@ -61,4 +61,62 @@ void main() {
     expect(const MixedNumber(0, 3, 4).toArabicString(), '٣/٤');
     expect(const MixedNumber(1, 1, 2).toArabicString(), '١ و١/٢');
   });
+
+  test('generateLikeFractionQuestion keeps proper fractions and valid choices',
+      () {
+    for (final add in [true, false]) {
+      final random = Random(add ? 31 : 32);
+      final generator = MixedNumberGenerator(random: random);
+      for (var i = 0; i < 300; i++) {
+        final q = generator.generateLikeFractionQuestion(add: add);
+
+        // Plain fractions: no whole part on operands, choices, or answer.
+        expect(q.num1.whole, 0, reason: '${add ? 'add' : 'sub'} #$i');
+        expect(q.num2.whole, 0, reason: '${add ? 'add' : 'sub'} #$i');
+        expect(q.num1.denominator, q.num2.denominator);
+        expect(q.operation, add ? '+' : '-');
+
+        if (add) {
+          expect(
+            q.num1.toImproperNumerator() + q.num2.toImproperNumerator(),
+            lessThan(q.num1.denominator),
+          );
+        } else {
+          expect(
+            q.num1.toImproperNumerator(),
+            greaterThan(q.num2.toImproperNumerator()),
+          );
+        }
+
+        expect(q.choices, hasLength(4));
+        expect(
+          q.choices.map((choice) => choice.key).toSet(),
+          hasLength(4),
+          reason: 'duplicate choices on ${add ? 'add' : 'sub'} #$i',
+        );
+        expect(q.correctIndex, inInclusiveRange(0, 3));
+        expect(q.correctAnswer, q.choices[q.correctIndex]);
+
+        for (final choice in q.choices) {
+          expect(choice.whole, 0, reason: 'mixed choice in plain question');
+          expect(choice.numerator, greaterThan(0));
+          expect(choice.numerator, lessThan(choice.denominator));
+        }
+
+        final expected = add
+            ? q.num1.toImproperNumerator() + q.num2.toImproperNumerator()
+            : q.num1.toImproperNumerator() - q.num2.toImproperNumerator();
+        final answer = q.correctAnswer;
+        expect(
+          answer.toImproperNumerator() * q.num1.denominator,
+          expected * answer.denominator,
+          reason: 'answer $answer incorrect on ${add ? 'add' : 'sub'} #$i',
+        );
+
+        expect(q.questionText, contains('؟'));
+        expect(q.explanation, isNotEmpty);
+        expect(q.spokenText, isNotEmpty);
+      }
+    }
+  });
 }
