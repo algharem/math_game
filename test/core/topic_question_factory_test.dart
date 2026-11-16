@@ -91,7 +91,9 @@ void main() {
     }
   });
 
-  test('topic-exam generate uses all selected topics including those previously not ready', () {
+  test(
+      'topic-exam generate uses all selected topics including those previously not ready',
+      () {
     final config = ExamConfig(
       section: MathSection.mixed,
       title: 'نموذج',
@@ -105,7 +107,8 @@ void main() {
     final questions = QuizBuilderService.generate(config);
     expect(questions, hasLength(10));
     // Both topics are now exam-able from the book topic list
-    expect(questions.map((q) => q.topicId).toSet().length, greaterThanOrEqualTo(1));
+    expect(questions.map((q) => q.topicId).toSet().length,
+        greaterThanOrEqualTo(1));
   });
 
   test('generate works for any selected book topics', () {
@@ -118,6 +121,36 @@ void main() {
     );
     final questions = QuizBuilderService.generate(config);
     expect(questions, hasLength(10));
+  });
+
+  test('grade-4 fractions topic generates valid questions of every kind', () {
+    const topic = CurriculumTopic(
+      id: 'g4_p2_t5',
+      grade: 4,
+      part: 2,
+      title: 'الكسور العادية (اختبار)',
+      unitName: 'الكسور',
+    );
+    final random = Random(42);
+    final seenKinds = <QuestionKind>{};
+    for (var index = 0; index < 60; index++) {
+      final q = TopicQuestionFactory.question(
+        topic: topic,
+        strength: TopicStrength.medium,
+        random: random,
+        index: index,
+      );
+      expect(q.topicId, 'g4_p2_t5');
+      expect(q.correctAnswer, isIn(q.choices),
+          reason: 'answer $q.correctAnswer not among ${q.choices} #$index');
+      expect(q.choices.toSet(), hasLength(q.choices.length),
+          reason: 'duplicate choices #$index');
+      expect(q.explanation, isNotEmpty);
+      expect(q.tokens, isNotEmpty);
+      seenKinds.add(q.kind);
+    }
+    // All fractions questions are MCQs in the fractionOps section.
+    expect(seenKinds, contains(QuestionKind.fractionOps));
   });
 
   test('adaptive pools cover every tier at the requested size', () {

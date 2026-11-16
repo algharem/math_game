@@ -257,6 +257,14 @@ const List<CurriculumTopic> curriculumTopicSeed = [
     title: 'وحدات القياس (الطول، الكتلة، السعة، الزمن وتحويلاتها)',
     unitName: 'القياس',
   ),
+  CurriculumTopic(
+    id: 'g4_p2_t5',
+    grade: 4,
+    part: 2,
+    title: 'الكسور العادية (الجمع والطرح وترتيب الكسور والمسائل الكلامية)',
+    unitName: 'الكسور',
+    generationReady: true,
+  ),
   // ───── GRADE 5 ─────
   CurriculumTopic(
     id: 'g5_p1_t1',

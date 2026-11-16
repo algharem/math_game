@@ -3,8 +3,8 @@ import 'package:math_heroes/core/curriculum/topic_seed.dart';
 import 'package:math_heroes/shared/models/curriculum_topic.dart';
 
 void main() {
-  test('seed has the full 68-topic map with unique ids', () {
-    expect(curriculumTopicSeed, hasLength(68));
+  test('seed has the full 69-topic map with unique ids', () {
+    expect(curriculumTopicSeed, hasLength(69));
     final ids = curriculumTopicSeed.map((topic) => topic.id).toSet();
     expect(ids, hasLength(curriculumTopicSeed.length),
         reason: 'duplicate topic ids found');
@@ -33,7 +33,7 @@ void main() {
       [
         for (var grade = 1; grade <= 9; grade++) counts[grade] ?? 0,
       ],
-      [9, 8, 8, 7, 7, 7, 8, 7, 7],
+      [9, 8, 8, 8, 7, 7, 8, 7, 7],
     );
   });
 

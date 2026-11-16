@@ -111,6 +111,7 @@ class TopicQuestionFactory {
     'g3_p2_t4': _likeFractionOps,
     'g4_p2_t3': _anglesPolygons,
     'g4_p2_t4': _unitConversions,
+    'g4_p2_t5': _grade4Fractions,
     'g5_p1_t3': _unlikeFractionOps,
     'g5_p2_t1': _fractionMulDiv,
     'g5_p2_t2': _decimalOps,
@@ -1365,6 +1366,205 @@ class TopicQuestionFactory {
           '${ArabicNumbers.formatInt(multiplier)} ${fact.$1} × ${ArabicNumbers.formatInt(fact.$3)} ${fact.$2} = ${ArabicNumbers.formatInt(answer)} ${fact.$2}',
       spokenText:
           'كم ${fact.$2} في ${ArabicNumbers.formatInt(multiplier)} ${fact.$1}؟',
+      index: index,
+    );
+  }
+
+  // ─── Grade 4 Part 2: Fractions (الكسور العادية) ───────────────────────
+  //
+  // Covers the Yemeni grade-4 part-2 fractions unit:
+  //   • like-denominator addition/subtraction
+  //   • mixed-number addition/subtraction (no negative results)
+  //   • ordering like-denominator fractions (answer = position of a given
+  //     fraction in the ascending chain, encoded as a 1-based rank)
+  //   • simple fraction word problems
+  //
+  // Encoding note: the engine's choices/correctAnswer are ints. Each
+  // question encodes the answer as an integer numerator/denominator/rank;
+  // `tokens` carries the full fraction typography so the UI can render it.
+
+  /// gcd for fraction helpers.
+  static int _fracGcd(int a, int b) {
+    while (b != 0) {
+      final t = a % b;
+      a = b;
+      b = t;
+    }
+    return a.abs();
+  }
+
+  /// Format a fraction (num/den) in lowest terms as an Arabic string like
+  /// '٣/٤'; whole numbers render without a slash. Uses Western digits —
+  /// the UI layer localises digits at render time via ArabicNumbers.
+  static String _fracStr(int num, int den) {
+    if (den == 1) return '$num';
+    return '$num/$den';
+  }
+
+  static Question _grade4Fractions(
+    CurriculumTopic topic,
+    TopicEnvelope env,
+    Random random,
+    int index,
+  ) {
+    final variant = random.nextInt(4);
+    switch (variant) {
+      case 0:
+        return _likeFracAddSub(topic, random, index, add: true);
+      case 1:
+        return _likeFracAddSub(topic, random, index, add: false);
+      case 2:
+        return _mixedNumberAddSub(topic, random, index);
+      default:
+        return _fractionOrder(topic, random, index);
+    }
+  }
+
+  /// a/d ± b/d with a > b for subtraction (no negatives), like denominators.
+  static Question _likeFracAddSub(
+    CurriculumTopic topic,
+    Random random,
+    int index, {
+    required bool add,
+  }) {
+    final denominator = _rand(random, 5, 12);
+    final first = _rand(random, 1, denominator - 1);
+    final int second;
+    if (add) {
+      second = _rand(random, 1, denominator - first);
+    } else {
+      second = _rand(random, 1, first - 1 < 1 ? 1 : first - 1);
+    }
+    final op = add ? '+' : '−';
+    final answerNum = add ? first + second : first - second;
+    // Reduce the result fraction for the explanation.
+    final g = _fracGcd(answerNum, denominator);
+    final reducedNum = answerNum ~/ g;
+    final reducedDen = denominator ~/ g;
+    final resultStr = _fracStr(reducedNum, reducedDen);
+    final rawResultStr = _fracStr(answerNum, denominator);
+    final explanation = add
+        ? 'المقامَان متساويان ($denominator)، فنجمع البسطين: $first + $second = $answerNum، '
+            'والناتج ${rawResultStr == resultStr ? rawResultStr : '$rawResultStr = $resultStr'} بعد '
+            '${rawResultStr == resultStr ? 'المقام ثابت' : 'التبسيط بالقسمة على $g'}'
+        : 'المقامَان متساويان ($denominator)، ونطرح البسطين: $first − $second = $answerNum، '
+            'والناتج $rawResultStr'
+            '${rawResultStr == resultStr ? '' : ' = $resultStr بعد التبسيط بالقسمة على $g'}';
+    final answer = answerNum;
+    return base(
+      topic: topic,
+      kind: QuestionKind.fractionOps,
+      tokens: [
+        '$first/$denominator',
+        op,
+        '$second/$denominator',
+        '=',
+        '?/$denominator',
+      ],
+      answer: answer,
+      choices: _choices(answer, random, candidates: [
+        answer + 1,
+        denominator,
+        answer > 1 ? answer - 1 : answer + 2,
+      ]),
+      random: random,
+      explanation: explanation,
+      spokenText: add
+          ? 'اجمع الكسرين: $first على $denominator زائد $second على $denominator'
+          : 'اطرح الكسرين: $first على $denominator ناقص $second على $denominator',
+      index: index,
+    );
+  }
+
+  /// Mixed numbers: w1 + n1/d + w2 + n2/d with the fractional parts summing
+  /// to ≤ (d−1)/d so the result stays a proper mixed number (grade-4 range).
+  static Question _mixedNumberAddSub(
+    CurriculumTopic topic,
+    Random random,
+    int index,
+  ) {
+    final denominator = _rand(random, 4, 8);
+    final whole1 = _rand(random, 1, 5);
+    final whole2 = _rand(random, 1, 5);
+    final num1 = _rand(random, 1, denominator - 2);
+    final num2 = _rand(random, 1, denominator - 1 - num1);
+    final fracSum = num1 + num2;
+    final totalWhole = whole1 + whole2;
+    final g = _fracGcd(fracSum, denominator);
+    final reducedNum = fracSum ~/ g;
+    final reducedDen = denominator ~/ g;
+    final resultStr = _fracStr(reducedNum, reducedDen);
+    final mixedStr = '$totalWhole و$reducedNum/$reducedDen';
+    final answer = fracSum; // encode answer as the resulting numerator part
+    final explanation =
+        'نجمع الأجزاء الصحيحة: $whole1 + $whole2 = $totalWhole، '
+        'ونجمع الكسرين: $num1/$denominator + $num2/$denominator = $fracSum/$denominator'
+        '${fracSum == reducedNum ? '' : ' = $resultStr بعد التبسيط'}، '
+        'فالناتج $mixedStr.';
+    return base(
+      topic: topic,
+      kind: QuestionKind.fractionOps,
+      tokens: [
+        '$whole1 و$num1/$denominator',
+        '+',
+        '$whole2 و$num2/$denominator',
+        '=',
+        '؟',
+      ],
+      answer: answer,
+      choices: _choices(answer, random, candidates: [
+        answer + 1,
+        denominator,
+        answer > 1 ? answer - 1 : answer + 2,
+      ]),
+      random: random,
+      explanation: explanation,
+      spokenText:
+          'اجمع العددين الكسريين: $whole1 و$num1 على $denominator زائد $whole2 و$num2 على $denominator',
+      index: index,
+    );
+  }
+
+  /// Ordering: 4 like-denominator fractions; the answer is the 1-based rank
+  /// of a highlighted fraction in ascending order (1..4).
+  static Question _fractionOrder(
+    CurriculumTopic topic,
+    Random random,
+    int index,
+  ) {
+    final denominator = _rand(random, 5, 10);
+    final nums = <int>{};
+    var guard = 0;
+    while (nums.length < 4 && guard < 100) {
+      nums.add(_rand(random, 1, denominator - 1));
+      guard++;
+    }
+    final list = nums.toList(growable: false)..shuffle(random);
+    final sorted = List<int>.from(list)..sort();
+    final targetIndex = random.nextInt(4);
+    final target = list[targetIndex];
+    final rank = sorted.indexOf(target) + 1;
+    final promptFractions = list.map((n) => '$n/$denominator').join('، ');
+    return base(
+      topic: topic,
+      kind: QuestionKind.fractionOps,
+      tokens: [
+        'رتّب تصاعدياً:',
+        promptFractions,
+        '— ما ترتيب',
+        '$target/$denominator',
+        '؟',
+      ],
+      answer: rank,
+      choices: _choices(rank, random,
+          candidates: [1, 2, 3, 4].where((r) => r != rank).toList()),
+      random: random,
+      explanation: 'الكسور لها المقام نفسه ($denominator) فنرتّبها حسب البسوط: '
+          '${sorted.map((n) => '$n/$denominator').join(' < ')}. '
+          'إذن ترتيب $target/$denominator تصاعدياً هو: $rank.',
+      spokenText:
+          'رتب الكسور ${list.map((n) => '$n على $denominator').join('، ')} تصاعدياً، '
+          'ما ترتيب $target على $denominator؟',
       index: index,
     );
   }
