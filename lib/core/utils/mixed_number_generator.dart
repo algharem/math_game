@@ -75,6 +75,24 @@ class MixedNumber {
   }
 }
 
+/// One piece of a fraction word-problem story: plain Arabic text or a
+/// fraction that the UI renders as a visual fraction.
+sealed class FractionStorySegment {
+  const FractionStorySegment();
+}
+
+class FractionStoryText extends FractionStorySegment {
+  const FractionStoryText(this.text);
+
+  final String text;
+}
+
+class FractionStoryFraction extends FractionStorySegment {
+  const FractionStoryFraction(this.value);
+
+  final MixedNumber value;
+}
+
 /// One generated mixed-number addition/subtraction exercise, including the
 /// four shuffled MCQ choices and the index of the correct one.
 class MixedNumberQuestion {
@@ -87,6 +105,7 @@ class MixedNumberQuestion {
     required this.questionText,
     required this.explanation,
     required this.spokenText,
+    this.story,
   })  : assert(choices.length >= 2),
         assert(correctIndex >= 0 && correctIndex < choices.length);
 
@@ -101,6 +120,13 @@ class MixedNumberQuestion {
   final String questionText;
   final String explanation;
   final String spokenText;
+
+  /// When non-null the question is a fraction word problem; the UI renders
+  /// this story (with inline visual fractions) instead of the bare
+  /// expression `num1 ± num2 = ?`.
+  final List<FractionStorySegment>? story;
+
+  bool get isWordProblem => story != null;
 
   MixedNumber get correctAnswer => choices[correctIndex];
 
@@ -244,6 +270,101 @@ class MixedNumberGenerator {
       spokenText: add
           ? 'اجمع الكسرين: $firstText على $denominatorText زائد $secondText على $denominatorText'
           : 'اطرح الكسرين: $firstText على $denominatorText ناقص $secondText على $denominatorText',
+    );
+  }
+
+  static const List<String> _storyNames = [
+    'أحمد',
+    'خالد',
+    'يوسف',
+    'عمر',
+    'سامي',
+    'طارق',
+  ];
+
+  /// Generates a like-denominator fraction word problem. The story keeps the
+  /// fractions as [FractionStoryFraction] segments so the UI can draw them
+  /// with real fraction bars, and the answer choices are proper fractions.
+  MixedNumberQuestion generateWordProblem() {
+    final denominator =
+        _random.nextInt(maxDenominator - minDenominator + 1) + minDenominator;
+    final add = _random.nextBool();
+
+    final int firstNumerator;
+    final int secondNumerator;
+    if (add) {
+      firstNumerator = _random.nextInt(denominator - 2) + 1;
+      secondNumerator = _random.nextInt(denominator - firstNumerator - 1) + 1;
+    } else {
+      firstNumerator = _random.nextInt(denominator - 2) + 2;
+      secondNumerator = _random.nextInt(firstNumerator - 1) + 1;
+    }
+
+    final first = MixedNumber(0, firstNumerator, denominator);
+    final second = MixedNumber(0, secondNumerator, denominator);
+    final operation = add ? '+' : '-';
+    final resultTotal = add
+        ? firstNumerator + secondNumerator
+        : firstNumerator - secondNumerator;
+    final answer = MixedNumber.fromImproper(resultTotal, denominator);
+    final choices = _buildChoices(
+      answer,
+      first,
+      second,
+      operation,
+      properOnly: true,
+    );
+    final correctIndex = choices.indexOf(answer);
+
+    final name = _storyNames[_random.nextInt(_storyNames.length)];
+    final firstText = ArabicNumbers.formatInt(firstNumerator);
+    final secondText = ArabicNumbers.formatInt(secondNumerator);
+    final denominatorText = ArabicNumbers.formatInt(denominator);
+    final totalText = ArabicNumbers.formatInt(resultTotal);
+    final answerText = answer.toArabicString();
+
+    final story = add
+        ? <FractionStorySegment>[
+            FractionStoryText('أكل $name '),
+            FractionStoryFraction(first),
+            const FractionStoryText(' من الكعكة، ثم أكل '),
+            FractionStoryFraction(second),
+            const FractionStoryText('. كم أكل من الكعكة؟'),
+          ]
+        : <FractionStorySegment>[
+            FractionStoryText('كان مع $name '),
+            FractionStoryFraction(first),
+            const FractionStoryText(' من الشوكولاتة، فأعطى صديقه '),
+            FractionStoryFraction(second),
+            const FractionStoryText('. كم بقي معه؟'),
+          ];
+
+    final explanation = add
+        ? 'المقامان متساويان ($denominatorText)، فنجمع البسطين: '
+            '$firstText + $secondText = $totalText، والناتج $answerText.'
+        : 'المقامان متساويان ($denominatorText)، ونطرح البسطين: '
+            '$firstText − $secondText = $totalText، والناتج $answerText.';
+
+    final questionText = add
+        ? 'أكل $name ${first.toArabicString()} من الكعكة، ثم أكل '
+            '${second.toArabicString()}. كم أكل من الكعكة؟'
+        : 'كان مع $name ${first.toArabicString()} من الشوكولاتة، فأعطى '
+            'صديقه ${second.toArabicString()}. كم بقي معه؟';
+
+    return MixedNumberQuestion(
+      num1: first,
+      num2: second,
+      operation: operation,
+      choices: choices,
+      correctIndex: correctIndex,
+      questionText: questionText,
+      explanation: explanation,
+      spokenText: add
+          ? 'أكل $name $firstText على $denominatorText من الكعكة، ثم أكل '
+              '$secondText على $denominatorText. كم أكل من الكعكة؟'
+          : 'كان مع $name $firstText على $denominatorText من الشوكولاتة، '
+              'فأعطى صديقه $secondText على $denominatorText. كم بقي معه؟',
+      story: story,
     );
   }
 

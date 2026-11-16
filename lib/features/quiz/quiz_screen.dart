@@ -20,6 +20,7 @@ import '../../shared/models/quiz_launch_data.dart';
 import '../../shared/models/reward_rules.dart';
 import '../../shared/widgets/app_widgets.dart';
 import '../../widgets/fraction_order_widget.dart';
+import '../../widgets/fraction_story_widget.dart';
 import '../../widgets/mixed_number_widget.dart';
 
 class QuizScreen extends ConsumerStatefulWidget {
@@ -375,12 +376,19 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                 child: Column(
                   children: [
                     if (_question.isMixedNumber)
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: _MixedNumberPrompt(
-                          question: _question.mixedNumber!,
-                        ),
-                      )
+                      _question.mixedNumber!.isWordProblem
+                          ? FractionStoryPrompt(
+                              question: _question.mixedNumber!,
+                              fontSize: 22,
+                              textColor: AppColors.skyDeep,
+                              highlightColor: AppColors.skySoft,
+                            )
+                          : FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: _MixedNumberPrompt(
+                                question: _question.mixedNumber!,
+                              ),
+                            )
                     else if (_question.isFractionOrder)
                       FittedBox(
                         fit: BoxFit.scaleDown,

@@ -5,6 +5,7 @@ import 'package:math_heroes/core/curriculum/topic_seed.dart';
 import 'package:math_heroes/core/services/quiz_builder_service.dart';
 import 'package:math_heroes/core/services/topic_question_factory.dart';
 import 'package:math_heroes/core/utils/arabic_numbers.dart';
+import 'package:math_heroes/core/utils/mixed_number_generator.dart';
 import 'package:math_heroes/shared/models/curriculum_topic.dart';
 import 'package:math_heroes/shared/models/enums.dart';
 import 'package:math_heroes/shared/models/exam_config.dart';
@@ -167,6 +168,7 @@ void main() {
     var mixedFound = false;
     var plainFound = false;
     var orderFound = false;
+    var storyFound = false;
     for (var index = 0; index < 200; index++) {
       final q = TopicQuestionFactory.question(
         topic: topic,
@@ -195,6 +197,15 @@ void main() {
       }
 
       if (visual == null) continue;
+      if (visual.isWordProblem) {
+        storyFound = true;
+        expect(q.kind, QuestionKind.wordProblem);
+        expect(visual.story, isNotNull);
+        expect(
+          visual.story!.whereType<FractionStoryFraction>(),
+          hasLength(2),
+        );
+      }
       if (q.kind == QuestionKind.mixedNumber) mixedFound = true;
       if (q.kind == QuestionKind.fractionOps) {
         plainFound = true;
@@ -226,6 +237,8 @@ void main() {
         reason: 'no visual plain-fraction question generated for g4_p2_t5');
     expect(orderFound, isTrue,
         reason: 'no visual ordering question generated for g4_p2_t5');
+    expect(storyFound, isTrue,
+        reason: 'no fraction word problem generated for g4_p2_t5');
   });
 
   test('adaptive pools cover every tier at the requested size', () {

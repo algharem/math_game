@@ -14,6 +14,7 @@ import '../../shared/models/exam_models.dart';
 import '../../shared/models/reward_rules.dart';
 import '../../shared/widgets/app_widgets.dart';
 import '../../widgets/fraction_order_widget.dart';
+import '../../widgets/fraction_story_widget.dart';
 import '../../widgets/mixed_number_widget.dart';
 import '../login/login_screen.dart';
 
@@ -503,15 +504,22 @@ class _ReviewCard extends StatelessWidget {
           ),
         ),
         title: answer.question.isMixedNumber
-            ? FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: AlignmentDirectional.centerStart,
-                child: MixedNumberExpression(
-                  question: answer.question.mixedNumber!,
-                  fontSize: 18,
-                  showResult: true,
-                ),
-              )
+            ? answer.question.mixedNumber!.isWordProblem
+                ? FractionStoryPrompt(
+                    question: answer.question.mixedNumber!,
+                    fontSize: 14,
+                    highlightColor: AppColors.skySoft,
+                    showResult: true,
+                  )
+                : FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: AlignmentDirectional.centerStart,
+                    child: MixedNumberExpression(
+                      question: answer.question.mixedNumber!,
+                      fontSize: 18,
+                      showResult: true,
+                    ),
+                  )
             : answer.question.isFractionOrder
                 ? FittedBox(
                     fit: BoxFit.scaleDown,

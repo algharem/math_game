@@ -119,4 +119,77 @@ void main() {
       }
     }
   });
+
+  test('generateWordProblem builds a solvable story with visual fractions', () {
+    final random = Random(41);
+    final generator = MixedNumberGenerator(random: random);
+    var addCount = 0;
+    var subCount = 0;
+
+    for (var i = 0; i < 250; i++) {
+      final q = generator.generateWordProblem();
+
+      expect(q.isWordProblem, isTrue, reason: 'iteration $i');
+      final story = q.story;
+      expect(story, isNotNull, reason: 'iteration $i');
+      expect(story, isNotEmpty, reason: 'iteration $i');
+
+      // Exactly the two operands appear as inline visual fractions.
+      final fractionSegments =
+          story!.whereType<FractionStoryFraction>().toList(growable: false);
+      expect(fractionSegments, hasLength(2), reason: 'iteration $i');
+      expect(fractionSegments[0].value, q.num1, reason: 'iteration $i');
+      expect(fractionSegments[1].value, q.num2, reason: 'iteration $i');
+      expect(story.whereType<FractionStoryText>(), isNotEmpty);
+
+      expect(q.choices, hasLength(4), reason: 'iteration $i');
+      expect(
+        q.choices.map((choice) => choice.key).toSet(),
+        hasLength(4),
+        reason: 'duplicate choices on iteration $i',
+      );
+      expect(q.correctIndex, inInclusiveRange(0, 3));
+      expect(q.correctAnswer, q.choices[q.correctIndex]);
+
+      for (final choice in q.choices) {
+        expect(choice.whole, 0, reason: 'iteration $i');
+        expect(choice.numerator, greaterThan(0), reason: 'iteration $i');
+        expect(choice.numerator, lessThan(choice.denominator),
+            reason: 'iteration $i');
+      }
+
+      if (q.operation == '+') {
+        addCount++;
+        expect(
+          q.num1.toImproperNumerator() + q.num2.toImproperNumerator(),
+          lessThan(q.num1.denominator),
+          reason: 'improper story answer on iteration $i',
+        );
+      } else {
+        subCount++;
+        expect(
+          q.num1.toImproperNumerator(),
+          greaterThan(q.num2.toImproperNumerator()),
+          reason: 'negative story answer on iteration $i',
+        );
+      }
+
+      final expected = q.operation == '+'
+          ? q.num1.toImproperNumerator() + q.num2.toImproperNumerator()
+          : q.num1.toImproperNumerator() - q.num2.toImproperNumerator();
+      final answer = q.correctAnswer;
+      expect(
+        answer.toImproperNumerator() * q.num1.denominator,
+        expected * answer.denominator,
+        reason: 'wrong story answer on iteration $i',
+      );
+
+      expect(q.questionText, contains('؟'));
+      expect(q.explanation, isNotEmpty);
+      expect(q.spokenText, isNotEmpty);
+    }
+
+    expect(addCount, greaterThan(0));
+    expect(subCount, greaterThan(0));
+  });
 }

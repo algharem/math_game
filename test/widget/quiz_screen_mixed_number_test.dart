@@ -16,6 +16,7 @@ import 'package:math_heroes/shared/models/question.dart';
 import 'package:math_heroes/shared/models/quiz_launch_data.dart';
 import 'package:math_heroes/shared/widgets/app_widgets.dart';
 import 'package:math_heroes/widgets/fraction_order_widget.dart';
+import 'package:math_heroes/widgets/fraction_story_widget.dart';
 import 'package:math_heroes/widgets/mixed_number_widget.dart';
 
 /// Avoids constructing plugin-backed services inside widget tests.
@@ -71,6 +72,42 @@ Question _mixedQuestion() {
     spokenText: generated.spokenText,
     topicId: 'g4_p2_t5',
     mixedNumber: generated,
+  );
+}
+
+Question _storyQuestion() {
+  final mixed = MixedNumberQuestion(
+    num1: const MixedNumber(0, 2, 7),
+    num2: const MixedNumber(0, 3, 7),
+    operation: '+',
+    choices: const [
+      MixedNumber(0, 5, 7),
+      MixedNumber(0, 4, 7),
+      MixedNumber(0, 6, 7),
+      MixedNumber(0, 1, 7),
+    ],
+    correctIndex: 0,
+    questionText: 'أكل أحمد ٢/٧ من الكعكة، ثم أكل ٣/٧. كم أكل من الكعكة؟',
+    explanation: 'نجمع البسطين: ٢ + ٣ = ٥.',
+    spokenText: 'أكل أحمد ٢ على ٧ من الكعكة، ثم أكل ٣ على ٧.',
+    story: const [
+      FractionStoryText('أكل أحمد '),
+      FractionStoryFraction(MixedNumber(0, 2, 7)),
+      FractionStoryText(' من الكعكة، ثم أكل '),
+      FractionStoryFraction(MixedNumber(0, 3, 7)),
+      FractionStoryText('. كم أكل من الكعكة؟'),
+    ],
+  );
+  return Question(
+    id: 'story-1',
+    kind: QuestionKind.wordProblem,
+    tokens: [mixed.questionText],
+    correctAnswer: mixed.correctIndex,
+    choices: List<int>.generate(mixed.choices.length, (index) => index),
+    explanation: mixed.explanation,
+    spokenText: mixed.spokenText,
+    topicId: 'g4_p2_t5',
+    mixedNumber: mixed,
   );
 }
 
@@ -235,5 +272,66 @@ void main() {
 
     expect(find.text('السؤال ٢ من ٢'), findsOneWidget);
     expect(find.byType(FractionOrderPrompt), findsNothing);
+  });
+
+  testWidgets(
+      'fraction word problem shows the story and visual choices in typed mode',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final config = ExamConfig(
+      section: MathSection.mixed,
+      title: 'اختبار الكسور',
+      questionCount: 2,
+      answerMode: AnswerMode.typed,
+      topicIds: const ['g4_p2_t5'],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          audioServiceProvider.overrideWithValue(_SilentAudioService()),
+          ttsServiceProvider.overrideWithValue(_SilentTtsService()),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.build(highContrast: false, largeText: false),
+          home: QuizScreen(
+            launchData: QuizLaunchData(
+              config: config,
+              questions: [_storyQuestion(), _plainQuestion()],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(FractionStoryPrompt), findsOneWidget);
+    // A story prompt replaces the bare expression.
+    expect(find.byType(MixedNumberExpression), findsNothing);
+    expect(find.text('. كم أكل من الكعكة؟'), findsOneWidget);
+    // Two inline story fractions + four visual choices.
+    expect(find.byType(MixedNumberWidget), findsNWidgets(6));
+
+    final confirm = find.widgetWithText(PressButton, 'تأكيد الإجابة');
+    expect(confirm, findsOneWidget);
+    expect(tester.widget<PressButton>(confirm).onPressed, isNull);
+
+    // The first visual choice (after the two story fractions) is 5/7.
+    final firstChoice = find.byType(MixedNumberWidget).at(2);
+    await tester.ensureVisible(firstChoice);
+    await tester.tap(firstChoice);
+    await tester.pump();
+
+    expect(tester.widget<PressButton>(confirm).onPressed, isNotNull);
+
+    await tester.tap(confirm);
+    await tester.pumpAndSettle();
+
+    expect(find.text('السؤال ٢ من ٢'), findsOneWidget);
+    expect(find.byType(FractionStoryPrompt), findsNothing);
   });
 }

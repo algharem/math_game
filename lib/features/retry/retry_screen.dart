@@ -13,6 +13,7 @@ import '../../shared/models/exam_models.dart';
 import '../../shared/models/quiz_launch_data.dart';
 import '../../shared/widgets/app_widgets.dart';
 import '../../widgets/fraction_order_widget.dart';
+import '../../widgets/fraction_story_widget.dart';
 import '../../widgets/mixed_number_widget.dart';
 import '../login/login_screen.dart';
 
@@ -73,16 +74,26 @@ class RetryScreen extends ConsumerWidget {
                         children: [
                           Expanded(
                             child: answer.question.isMixedNumber
-                                ? FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    alignment: AlignmentDirectional.centerStart,
-                                    child: MixedNumberExpression(
-                                      question: answer.question.mixedNumber!,
-                                      fontSize: 22,
-                                      textColor: AppColors.skyDeep,
-                                      showResult: true,
-                                    ),
-                                  )
+                                ? answer.question.mixedNumber!.isWordProblem
+                                    ? FractionStoryPrompt(
+                                        question: answer.question.mixedNumber!,
+                                        fontSize: 18,
+                                        textColor: AppColors.skyDeep,
+                                        highlightColor: AppColors.skySoft,
+                                        showResult: true,
+                                      )
+                                    : FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        alignment:
+                                            AlignmentDirectional.centerStart,
+                                        child: MixedNumberExpression(
+                                          question:
+                                              answer.question.mixedNumber!,
+                                          fontSize: 22,
+                                          textColor: AppColors.skyDeep,
+                                          showResult: true,
+                                        ),
+                                      )
                                 : answer.question.isFractionOrder
                                     ? FittedBox(
                                         fit: BoxFit.scaleDown,

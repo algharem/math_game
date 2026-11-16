@@ -1395,7 +1395,7 @@ class TopicQuestionFactory {
     Random random,
     int index,
   ) {
-    final variant = random.nextInt(4);
+    final variant = random.nextInt(5);
     switch (variant) {
       case 0:
         return _likeFracAddSub(topic, random, index, add: true);
@@ -1403,9 +1403,39 @@ class TopicQuestionFactory {
         return _likeFracAddSub(topic, random, index, add: false);
       case 2:
         return _mixedNumberAddSub(topic, random, index);
-      default:
+      case 3:
         return _fractionOrder(topic, random, index);
+      default:
+        return _fractionWordProblem(topic, random, index);
     }
+  }
+
+  /// Like-denominator fraction word problem with a visual story prompt.
+  static Question _fractionWordProblem(
+    CurriculumTopic topic,
+    Random random,
+    int index,
+  ) {
+    final generated =
+        MixedNumberGenerator(random: random).generateWordProblem();
+    final question = base(
+      topic: topic,
+      kind: QuestionKind.wordProblem,
+      tokens: [generated.questionText],
+      answer: generated.correctIndex,
+      choices: List<int>.generate(
+        generated.choices.length,
+        (choiceIndex) => choiceIndex,
+      ),
+      random: random,
+      explanation: generated.explanation,
+      spokenText: generated.spokenText,
+      index: index,
+      mixedNumber: generated,
+    );
+    return question.copyWith(
+      factKey: '${topic.id}:${generated.correctAnswer.toArabicString()}',
+    );
   }
 
   /// a/d ± b/d with like denominators. Uses the visual fraction generator so
