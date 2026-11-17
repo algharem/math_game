@@ -19,9 +19,8 @@ import '../../shared/models/question.dart';
 import '../../shared/models/quiz_launch_data.dart';
 import '../../shared/models/reward_rules.dart';
 import '../../shared/widgets/app_widgets.dart';
-import '../../widgets/fraction_order_widget.dart';
-import '../../widgets/fraction_story_widget.dart';
 import '../../widgets/mixed_number_widget.dart';
+import '../../widgets/question_prompt.dart';
 
 class QuizScreen extends ConsumerStatefulWidget {
   const QuizScreen({super.key, required this.launchData});
@@ -375,45 +374,21 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                 borderColor: AppColors.skySoft,
                 child: Column(
                   children: [
-                    if (_question.isMixedNumber)
-                      _question.mixedNumber!.isWordProblem
-                          ? FractionStoryPrompt(
-                              question: _question.mixedNumber!,
-                              fontSize: 22,
-                              textColor: AppColors.skyDeep,
-                              highlightColor: AppColors.skySoft,
-                            )
-                          : FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: _MixedNumberPrompt(
-                                question: _question.mixedNumber!,
-                              ),
-                            )
-                    else if (_question.isFractionOrder)
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: FractionOrderPrompt(
-                          question: _question.fractionOrder!,
-                          fontSize: 30,
-                          textColor: AppColors.skyDeep,
-                          highlightColor: AppColors.skySoft,
-                        ),
-                      )
-                    else
-                      Directionality(
-                        textDirection: TextDirection.ltr,
-                        child: Text(
-                          _question.equationText,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context)
-                              .textTheme
-                              .displayMedium
-                              ?.copyWith(
+                    QuestionPrompt(
+                      question: _question,
+                      fontSize: 34,
+                      storyFontSize: 22,
+                      orderFontSize: 30,
+                      textColor: AppColors.skyDeep,
+                      highlightColor: AppColors.skySoft,
+                      alignment: Alignment.center,
+                      plainTextAlign: TextAlign.center,
+                      plainTextStyle:
+                          Theme.of(context).textTheme.displayMedium?.copyWith(
                                 color: AppColors.skyDeep,
                                 fontSize: 42,
                               ),
-                        ),
-                      ),
+                    ),
                     const SizedBox(height: 8),
                     Text(
                       'اختر الإجابة الصحيحة',
@@ -599,24 +574,6 @@ class _ChoiceButton extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// Visual prompt for mixed-number addition/subtraction. The two operands are
-/// rendered with [MixedNumberWidget] so the fraction bar and whole part are
-/// clear for grade-4 students.
-class _MixedNumberPrompt extends StatelessWidget {
-  const _MixedNumberPrompt({required this.question});
-
-  final MixedNumberQuestion question;
-
-  @override
-  Widget build(BuildContext context) {
-    return MixedNumberExpression(
-      question: question,
-      fontSize: 34,
-      textColor: AppColors.skyDeep,
     );
   }
 }

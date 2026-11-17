@@ -14,9 +14,7 @@ import '../../shared/models/exam_models.dart';
 import '../../shared/models/reward_rules.dart';
 import '../../shared/widgets/app_widgets.dart';
 import '../../widgets/answer_review_line.dart';
-import '../../widgets/fraction_order_widget.dart';
-import '../../widgets/fraction_story_widget.dart';
-import '../../widgets/mixed_number_widget.dart';
+import '../../widgets/question_prompt.dart';
 import '../login/login_screen.dart';
 
 class ResultsScreen extends ConsumerStatefulWidget {
@@ -504,40 +502,14 @@ class _ReviewCard extends StatelessWidget {
             size: 19,
           ),
         ),
-        title: answer.question.isMixedNumber
-            ? answer.question.mixedNumber!.isWordProblem
-                ? FractionStoryPrompt(
-                    question: answer.question.mixedNumber!,
-                    fontSize: 14,
-                    highlightColor: AppColors.skySoft,
-                    showResult: true,
-                  )
-                : FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: AlignmentDirectional.centerStart,
-                    child: MixedNumberExpression(
-                      question: answer.question.mixedNumber!,
-                      fontSize: 18,
-                      showResult: true,
-                    ),
-                  )
-            : answer.question.isFractionOrder
-                ? FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: AlignmentDirectional.centerStart,
-                    child: FractionOrderPrompt(
-                      question: answer.question.fractionOrder!,
-                      fontSize: 16,
-                      showResult: true,
-                    ),
-                  )
-                : Directionality(
-                    textDirection: TextDirection.ltr,
-                    child: Text(
-                      answer.question.equationText,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ),
+        title: QuestionPrompt(
+          question: answer.question,
+          fontSize: 18,
+          storyFontSize: 14,
+          orderFontSize: 16,
+          highlightColor: AppColors.skySoft,
+          showResult: true,
+        ),
         subtitle: AnswerReviewLine(
           question: answer.question,
           childAnswer: answer.childAnswer,
