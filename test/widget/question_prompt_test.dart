@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:math_heroes/core/curriculum/grade04_p2_unit6_bank.dart';
 import 'package:math_heroes/core/utils/fraction_order_generator.dart';
 import 'package:math_heroes/core/utils/mixed_number_generator.dart';
 import 'package:math_heroes/shared/models/enums.dart';
@@ -77,6 +78,34 @@ void main() {
     expect(find.byType(MixedNumberExpression), findsNothing);
     expect(find.byType(FractionStoryPrompt), findsNothing);
     expect(find.byType(FractionOrderPrompt), findsNothing);
+  });
+
+  testWidgets('authored Arabic prompts render verbatim with RTL direction', (
+    tester,
+  ) async {
+    final authored = Unit6QuestionBank.questions
+        .firstWhere((question) => question.id == 'g4p2u6_t8_b02')
+        .toQuestion();
+    await tester.pumpWidget(_wrap(QuestionPrompt(question: authored)));
+
+    expect(find.text(authored.displayPrompt), findsOneWidget);
+    expect(authored.displayPrompt, authored.promptText);
+    expect(
+      Directionality.of(tester.element(find.text(authored.displayPrompt))),
+      TextDirection.rtl,
+      reason: 'Arabic wording must keep decimal digits in reading order',
+    );
+  });
+
+  testWidgets('plain numeric prompts keep their original LTR direction', (
+    tester,
+  ) async {
+    final question = _plainQuestion();
+    await tester.pumpWidget(_wrap(QuestionPrompt(question: question)));
+    expect(
+      Directionality.of(tester.element(find.text(question.equationText))),
+      TextDirection.ltr,
+    );
   });
 
   testWidgets('mixed numbers render as a visual expression', (tester) async {

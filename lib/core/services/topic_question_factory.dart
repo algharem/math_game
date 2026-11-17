@@ -3,6 +3,7 @@ import 'dart:math';
 import '../../shared/models/curriculum_topic.dart';
 import '../../shared/models/enums.dart';
 import '../../shared/models/question.dart';
+import '../curriculum/grade04_p2_unit6_bank.dart';
 import '../utils/arabic_number_words.dart';
 import '../utils/arabic_numbers.dart';
 import '../utils/fraction_order_generator.dart';
@@ -43,9 +44,23 @@ class TopicQuestionFactory {
     required Random random,
     int index = 0,
   }) {
+    // Grade 4 Part 2 Unit 6 uses the textbook-verified authored bank. Each
+    // authored question carries its own 1–100 difficulty, so the full lesson
+    // bank is used instead of a numeric envelope; this keeps one generation
+    // entry point and one exam pipeline for every topic.
+    final authored = _unit6Question(topic.id, random);
+    if (authored != null) return authored;
+
     final envelope = _envelopeFor(strength);
     final builder = _builders[topic.id] ?? _additionBuilder;
     return builder(topic, envelope, random, index);
+  }
+
+  static Question? _unit6Question(String topicId, Random random) {
+    if (!Unit6QuestionBank.lessonNames.containsKey(topicId)) return null;
+    final lesson = Unit6QuestionBank.forLesson(topicId);
+    if (lesson.isEmpty) return null;
+    return lesson[random.nextInt(lesson.length)].toQuestion();
   }
 
   static TopicEnvelope _envelopeFor(TopicStrength strength) {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:math_heroes/core/curriculum/grade04_p2_unit6_bank.dart';
 import 'package:math_heroes/core/utils/mixed_number_generator.dart';
 import 'package:math_heroes/shared/models/enums.dart';
 import 'package:math_heroes/shared/models/question.dart';
@@ -80,6 +81,29 @@ void main() {
 
     expect(find.text('إجابتك: ٧ • الصحيحة: ٥'), findsOneWidget);
     expect(find.byType(MixedNumberWidget), findsNothing);
+  });
+
+  testWidgets('authored decimal answers keep their exact Arabic labels', (
+    tester,
+  ) async {
+    final authored = Unit6QuestionBank.questions
+        .firstWhere((question) => question.id == 'g4p2u6_t14_h04')
+        .toQuestion();
+    await tester.pumpWidget(
+      _wrap(
+        AnswerReviewLine(
+          question: authored,
+          childAnswer: 1,
+          correct: false,
+        ),
+      ),
+    );
+
+    // Choice 1 is «١٫٢٥ والفرق ٠٫٧٦» and the correct answer keeps its
+    // decimal point; the integer based engine never leaks a raw index.
+    expect(find.textContaining('١٫٢٥ والفرق ٠٫٧٦'), findsOneWidget);
+    expect(find.textContaining('١٫٢٥ والفرق ٠٫٧٥'), findsOneWidget);
+    expect(authored.answerText, '١٫٢٥ والفرق ٠٫٧٥');
   });
 
   testWidgets('renders both fraction answers visually', (tester) async {

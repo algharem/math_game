@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:math_heroes/app/providers.dart';
 import 'package:math_heroes/app/theme.dart';
+import 'package:math_heroes/core/curriculum/grade04_p2_unit6_bank.dart';
 import 'package:math_heroes/core/services/audio_service.dart';
 import 'package:math_heroes/core/services/tts_service.dart';
 import 'package:math_heroes/core/utils/fraction_order_generator.dart';
@@ -485,5 +486,69 @@ void main() {
 
     expect(find.text('السؤال ٢ من ٢'), findsOneWidget);
     expect(find.byType(FractionStoryPrompt), findsNothing);
+  });
+
+  testWidgets(
+      'authored Unit 6 question shows exact decimal choices and selects in typed mode',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final authored = Unit6QuestionBank.questions
+        .firstWhere((question) => question.id == 'g4p2u6_t11_m02')
+        .toQuestion();
+
+    final config = ExamConfig(
+      section: MathSection.mixed,
+      title: 'اختبار الكسور العشرية',
+      questionCount: 2,
+      answerMode: AnswerMode.typed,
+      topicIds: const ['g4_p2_t11'],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          audioServiceProvider.overrideWithValue(_SilentAudioService()),
+          ttsServiceProvider.overrideWithValue(_SilentTtsService()),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.build(highContrast: false, largeText: false),
+          home: QuizScreen(
+            launchData: QuizLaunchData(
+              config: config,
+              questions: [authored, _plainQuestion()],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verbatim Arabic prompt and exact decimal choice labels — no raw
+    // indices and no ASCII decimals leak through the integer answer engine.
+    expect(find.text(authored.promptText!), findsOneWidget);
+    for (final label in authored.choiceTexts!) {
+      expect(find.text(label), findsOneWidget, reason: 'missing choice $label');
+    }
+    expect(find.text('٢٫٧٦'), findsOneWidget);
+    expect(find.text('٢٫٧٧'), findsOneWidget);
+    expect(find.text('٢٫٧٦٦'), findsOneWidget);
+
+    // Authored questions force choice mode even though the exam is typed.
+    final confirm = find.widgetWithText(PressButton, 'تأكيد الإجابة');
+    expect(confirm, findsOneWidget);
+    expect(tester.widget<PressButton>(confirm).onPressed, isNull);
+
+    await tester.ensureVisible(find.text('٢٫٧٦'));
+    await tester.tap(find.text('٢٫٧٦'));
+    await tester.pump();
+    expect(tester.widget<PressButton>(confirm).onPressed, isNotNull);
+
+    await tester.tap(confirm);
+    await tester.pumpAndSettle();
+    expect(find.text('السؤال ٢ من ٢'), findsOneWidget);
   });
 }

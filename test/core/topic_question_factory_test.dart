@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:math_heroes/core/curriculum/grade04_p2_unit6_bank.dart';
 import 'package:math_heroes/core/curriculum/topic_seed.dart';
 import 'package:math_heroes/core/services/quiz_builder_service.dart';
 import 'package:math_heroes/core/services/topic_question_factory.dart';
@@ -18,6 +19,9 @@ void main() {
 
     final random = Random(7);
     for (final topic in readyTopics) {
+      final authoredIds = Unit6QuestionBank.forLesson(topic.id)
+          .map((question) => question.id)
+          .toSet();
       for (final strength in TopicStrength.values) {
         final seen = <String>{};
         for (var index = 0; index < 15; index++) {
@@ -47,11 +51,23 @@ void main() {
             isNotEmpty,
             reason: '${topic.id}/$strength/#$index empty explanation',
           );
-          expect(
-            seen.add(question.id),
-            isTrue,
-            reason: '${topic.id}/$strength duplicate id',
-          );
+          if (authoredIds.isNotEmpty) {
+            // Authored Unit 6 lessons are a finite, verified bank drawn at
+            // random; every result must come from that lesson. Id uniqueness
+            // is verified by iterating the bank itself in its own test.
+            expect(
+              authoredIds,
+              contains(question.id),
+              reason: '${topic.id}/$strength/#$index not an authored question',
+            );
+            expect(question.isAuthoredBankQuestion, isTrue);
+          } else {
+            expect(
+              seen.add(question.id),
+              isTrue,
+              reason: '${topic.id}/$strength duplicate id',
+            );
+          }
         }
       }
     }

@@ -424,7 +424,11 @@ class AppDatabase extends _$AppDatabase {
           ..where(
             (table) => table.grade.equals(grade) & table.part.equals(part),
           )
-          ..orderBy([(table) => OrderingTerm.asc(table.id)]))
+          // Numeric suffix order: t1…t9 before t10…t14 (book order).
+          ..orderBy([
+            (table) => OrderingTerm.asc(table.id.length),
+            (table) => OrderingTerm.asc(table.id),
+          ]))
         .get();
   }
 

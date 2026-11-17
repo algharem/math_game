@@ -190,7 +190,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   /// generated choices, even if the exam was configured for typing.
   bool get _isChoiceMode =>
       _launch.config.answerMode == AnswerMode.multipleChoice ||
-      _question.isVisual;
+      _question.isVisual ||
+      _question.isAuthoredBankQuestion;
 
   bool get _canConfirm {
     if (_isChoiceMode) return _selectedChoice != null;
@@ -419,6 +420,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                   )
                 else
                   _ChoiceGrid(
+                    question: _question,
                     choices: _question.choices,
                     selected: _selectedChoice,
                     onSelected: _selectChoice,
@@ -499,11 +501,13 @@ class _TimerPill extends StatelessWidget {
 
 class _ChoiceGrid extends StatelessWidget {
   const _ChoiceGrid({
+    required this.question,
     required this.choices,
     required this.selected,
     required this.onSelected,
   });
 
+  final Question question;
   final List<int> choices;
   final int? selected;
   final ValueChanged<int> onSelected;
@@ -520,7 +524,7 @@ class _ChoiceGrid extends StatelessWidget {
       children: [
         for (final choice in choices)
           _ChoiceButton(
-            value: choice,
+            label: question.choiceText(choice),
             selected: selected == choice,
             onTap: () => onSelected(choice),
           ),
@@ -531,12 +535,12 @@ class _ChoiceGrid extends StatelessWidget {
 
 class _ChoiceButton extends StatelessWidget {
   const _ChoiceButton({
-    required this.value,
+    required this.label,
     required this.selected,
     required this.onTap,
   });
 
-  final int value;
+  final String label;
   final bool selected;
   final VoidCallback onTap;
 
@@ -565,11 +569,14 @@ class _ChoiceButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(22),
           onTap: onTap,
           child: Center(
-            child: Text(
-              ArabicNumbers.formatInt(value),
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: selected ? Colors.white : AppColors.ink,
-                  ),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      color: selected ? Colors.white : AppColors.ink,
+                    ),
+              ),
             ),
           ),
         ),

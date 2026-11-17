@@ -1,10 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:math_heroes/core/curriculum/grade04_p2_unit6_bank.dart';
 import 'package:math_heroes/core/curriculum/topic_seed.dart';
 import 'package:math_heroes/shared/models/curriculum_topic.dart';
 
 void main() {
-  test('seed has the full 69-topic map with unique ids', () {
-    expect(curriculumTopicSeed, hasLength(69));
+  test('seed has the full 78-topic map with unique ids', () {
+    expect(curriculumTopicSeed, hasLength(78));
     final ids = curriculumTopicSeed.map((topic) => topic.id).toSet();
     expect(ids, hasLength(curriculumTopicSeed.length),
         reason: 'duplicate topic ids found');
@@ -33,7 +34,46 @@ void main() {
       [
         for (var grade = 1; grade <= 9; grade++) counts[grade] ?? 0,
       ],
-      [9, 8, 8, 8, 7, 7, 8, 7, 7],
+      [9, 8, 8, 17, 7, 7, 8, 7, 7],
+    );
+  });
+
+  test('grade 4 part 2 Unit 6 topics appear in textbook order', () {
+    final unit6 = topicsFor(curriculumTopicSeed, grade: 4, part: 2)
+        .where(
+          (topic) => topic.unitName == Unit6QuestionBank.unitName,
+        )
+        .toList();
+    expect(unit6, hasLength(9));
+    expect(
+      unit6.map((topic) => topic.id).toList(),
+      Unit6QuestionBank.lessonIds,
+    );
+    expect(
+      unit6.map((topic) => topic.title).toList(),
+      [
+        'الأجزاء من عشرة',
+        'الأجزاء من مائة',
+        'الأعداد الكسرية في صورة كسور عشرية',
+        'مقارنة وترتيب الكسور العشرية',
+        'جمع الكسور العشرية',
+        'طرح الكسور العشرية',
+        'تدريبات ومسائل على الجمع والطرح',
+        'مسائل تطبيقية',
+        'اختبار الوحدة',
+      ],
+    );
+    // First three lessons match the order confirmed from the book.
+    expect(unit6.take(3).map((topic) => topic.title).toList(), [
+      'الأجزاء من عشرة',
+      'الأجزاء من مائة',
+      'الأعداد الكسرية في صورة كسور عشرية',
+    ]);
+    expect(unit6.every((topic) => topic.generationReady), isTrue);
+    expect(
+      unit6.map((topic) => topic.pageReference).toList(),
+      [41, 42, 44, 49, 56, 60, 64, 67, 71],
+      reason: 'printed page references must follow the source book',
     );
   });
 

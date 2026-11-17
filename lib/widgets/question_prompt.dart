@@ -85,10 +85,15 @@ class QuestionPrompt extends StatelessWidget {
       );
     }
 
+    final text = question.displayPrompt;
+    // Arabic words need RTL so the decimal separator and following digits
+    // stay in reading order. Pure numeric expressions keep LTR as before.
+    final hasArabicLetters =
+        RegExp(r'[\u0621-\u063A\u0641-\u064A\u066E-\u06D3]').hasMatch(text);
     return Directionality(
-      textDirection: TextDirection.ltr,
+      textDirection: hasArabicLetters ? TextDirection.rtl : TextDirection.ltr,
       child: Text(
-        question.equationText,
+        text,
         textAlign: plainTextAlign,
         style: plainTextStyle ?? Theme.of(context).textTheme.titleMedium,
       ),
