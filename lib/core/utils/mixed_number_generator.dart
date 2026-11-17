@@ -528,7 +528,8 @@ class MixedNumberGenerator {
             '$denominatorText، أي $numeratorText/$denominatorText، '
             'ثم نبسّط: $answerText.'
         : 'نقسم الكسر الأول على الثاني بضربه في مقلوب الثاني: '
-            '$firstText × ${second.denominator}/${second.numerator} = '
+            '$firstText × ${ArabicNumbers.formatInt(second.denominator)}/'
+            '${ArabicNumbers.formatInt(second.numerator)} = '
             '$numeratorText/$denominatorText، ثم نبسّط: $answerText.';
 
     return MixedNumberQuestion(
@@ -539,8 +540,11 @@ class MixedNumberGenerator {
       correctIndex: correctIndex,
       questionText: 'أوجد ناتج: $firstText $symbol $secondText = ؟',
       explanation: explanation,
-      spokenText: 'أوجد ناتج: ${first.toSpokenString()} '
-          '${multiply ? 'ضرب' : 'مقسومًا على'} ${second.toSpokenString()}',
+      spokenText: multiply
+          ? 'أوجد ناتج ضرب ${first.toSpokenString()} في '
+              '${second.toSpokenString()}'
+          : 'أوجد ناتج قسمة ${first.toSpokenString()} على '
+              '${second.toSpokenString()}',
     );
   }
 
@@ -720,8 +724,10 @@ class MixedNumberGenerator {
     final name = _storyNames[_random.nextInt(_storyNames.length)];
     final partsText = ArabicNumbers.formatInt(denominator);
     final answerText = correct.toArabicString();
-    final storyText = 'قسّم $name كعكة إلى $partsText أجزاء متساوية '
-        'وأخذ جزءًا واحدًا. ما الكسر الذي يمثل ما أخذه؟';
+    final splitText =
+        denominator == 2 ? 'جزأين متساويين' : '$partsText أجزاء متساوية';
+    final storyText = 'قسّم $name كعكة إلى $splitText وأخذ جزءًا واحدًا. '
+        'ما الكسر الذي يمثل ما أخذه؟';
 
     return MixedNumberQuestion(
       num1: correct,
@@ -730,7 +736,7 @@ class MixedNumberGenerator {
       choices: choices,
       correctIndex: correctIndex,
       questionText: storyText,
-      explanation: 'الكعكة مقسومة إلى $partsText أجزاء متساوية، '
+      explanation: 'الكعكة مقسومة إلى $splitText، '
           'والجزء الواحد يمثل $answerText.',
       spokenText: storyText,
       story: [FractionStoryText(storyText)],

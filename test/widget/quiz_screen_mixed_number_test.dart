@@ -466,7 +466,7 @@ void main() {
 
     expect(find.byType(FractionStoryPrompt), findsOneWidget);
     expect(find.byType(MixedNumberExpression), findsNothing);
-    expect(find.textContaining('أجزاء متساوية'), findsOneWidget);
+    expect(find.textContaining('متساوي'), findsOneWidget);
     // Four visual choices; the story itself only has text.
     expect(find.byType(MixedNumberWidget), findsNWidgets(4));
 

@@ -303,6 +303,11 @@ void main() {
 
       expect(q.questionText, contains('؟'));
       expect(q.explanation, isNotEmpty);
+      expect(
+        q.explanation,
+        isNot(matches(RegExp(r'[0-9]'))),
+        reason: 'western digits in mul/div explanation on iteration $i',
+      );
       expect(q.spokenText, isNotEmpty);
     }
 
@@ -362,7 +367,7 @@ void main() {
       expect(q.isWordProblem, isTrue);
       expect(q.story, isNotEmpty);
       expect(q.story!.first, isA<FractionStoryText>());
-      expect(q.questionText, contains('أجزاء متساوية'));
+      expect(q.questionText, contains('متساوي'));
       expect(q.choices, hasLength(4), reason: 'iteration $i');
       expect(
         q.choices.map((choice) => choice.key).toSet(),
