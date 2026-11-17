@@ -46,6 +46,18 @@ void main() {
       expect(q.explanation, isNotEmpty);
       expect(q.spokenText, isNotEmpty);
       expect(q.correctAnswer.key, isNotEmpty);
+      if (q.operation == '+') {
+        final raw = q.num1.numerator + q.num2.numerator;
+        final needsRewrite = raw >= q.num1.denominator ||
+            MixedNumber.fromImproper(raw, q.num1.denominator)
+                    .toImproperNumerator() !=
+                raw;
+        expect(
+          q.explanation.contains('نبسّط'),
+          needsRewrite,
+          reason: 'simplification wording mismatch in question $i',
+        );
+      }
     }
   });
 
@@ -308,6 +320,26 @@ void main() {
         isNot(matches(RegExp(r'[0-9]'))),
         reason: 'western digits in mul/div explanation on iteration $i',
       );
+      var gcdLeft = expectedNumerator.abs();
+      var gcdRight = expectedDenominator.abs();
+      while (gcdRight > 0) {
+        final remainder = gcdLeft % gcdRight;
+        gcdLeft = gcdRight;
+        gcdRight = remainder;
+      }
+      if (gcdLeft == 1) {
+        expect(
+          q.explanation,
+          contains('أبسط صورة'),
+          reason: 'already-reduced result should not claim simplification $i',
+        );
+      } else {
+        expect(
+          q.explanation,
+          contains('نبسّط'),
+          reason: 'reducible result should mention simplification on $i',
+        );
+      }
       expect(q.spokenText, isNotEmpty);
     }
 

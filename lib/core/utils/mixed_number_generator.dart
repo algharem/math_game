@@ -518,6 +518,9 @@ class MixedNumberGenerator {
     final denominatorText = ArabicNumbers.formatInt(denominator);
     final answerText = answer.toArabicString();
     final symbol = multiply ? '×' : '÷';
+    final simplifyText = answer.toImproperNumerator() == total
+        ? 'وهو في أبسط صورة.'
+        : 'ثم نبسّط: $answerText.';
 
     final explanation = multiply
         ? 'نضرب البسط في البسط والمقام في المقام: '
@@ -526,11 +529,11 @@ class MixedNumberGenerator {
             '${ArabicNumbers.formatInt(firstDenominator)} × '
             '${ArabicNumbers.formatInt(secondDenominator)} = '
             '$denominatorText، أي $numeratorText/$denominatorText، '
-            'ثم نبسّط: $answerText.'
+            '$simplifyText'
         : 'نقسم الكسر الأول على الثاني بضربه في مقلوب الثاني: '
             '$firstText × ${ArabicNumbers.formatInt(second.denominator)}/'
             '${ArabicNumbers.formatInt(second.numerator)} = '
-            '$numeratorText/$denominatorText، ثم نبسّط: $answerText.';
+            '$numeratorText/$denominatorText، $simplifyText';
 
     return MixedNumberQuestion(
       num1: first,
@@ -803,10 +806,18 @@ class MixedNumberGenerator {
     );
 
     if (operation == '+') {
+      final rawNumerator = first.numerator + second.numerator;
+      final needsRewrite = rawNumerator >= first.denominator ||
+          MixedNumber.fromImproper(rawNumerator, first.denominator)
+                  .toImproperNumerator() !=
+              rawNumerator;
+      final ending = needsRewrite
+          ? 'ثم نبسّط الناتج ليكون ${answer.toArabicString()}.'
+          : 'والناتج ${answer.toArabicString()}.';
       return 'نجمع الأجزاء الصحيحة: $firstWhole + $secondWhole = $totalWhole، '
           'ونجمع الكسور: $firstNumerator/$denominator + '
           '$secondNumerator/$denominator = $fractionSum/$denominator، '
-          'ثم نبسّط الناتج ليكون ${answer.toArabicString()}.';
+          '$ending';
     }
     return 'نحوّل العددين إلى كسرين غير حقيقيين: '
         '$firstImproper/$denominator و $secondImproper/$denominator، '
