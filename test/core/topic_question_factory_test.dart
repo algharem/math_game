@@ -327,6 +327,95 @@ void main() {
     }
   });
 
+  test('grade-3 concept and equivalence topics render visual fractions', () {
+    const simpleTopic = CurriculumTopic(
+      id: 'g3_p2_t2',
+      grade: 3,
+      part: 2,
+      title: 'مفهوم الكسور البسيطة (النصف، الثلث، الربع)',
+      unitName: 'الكسور',
+    );
+    const equivalentTopic = CurriculumTopic(
+      id: 'g3_p2_t3',
+      grade: 3,
+      part: 2,
+      title: 'تمثيل الكسور بالأشكال والتلوين والكسور المتكافئة',
+      unitName: 'الكسور',
+    );
+    final random = Random(11);
+
+    var simpleVisual = 0;
+    var simplePlain = 0;
+    for (var index = 0; index < 120; index++) {
+      final q = TopicQuestionFactory.question(
+        topic: simpleTopic,
+        strength: TopicStrength.medium,
+        random: random,
+        index: index,
+      );
+      final visual = q.mixedNumber;
+      if (visual == null) {
+        simplePlain++;
+        continue;
+      }
+
+      simpleVisual++;
+      expect(q.isVisual, isTrue, reason: 'g3_p2_t2/$index');
+      expect(q.kind, QuestionKind.fractionOps, reason: 'g3_p2_t2/$index');
+      expect(visual.isWordProblem, isTrue, reason: 'g3_p2_t2/$index');
+      expect(visual.story, isNotEmpty, reason: 'g3_p2_t2/$index');
+      expect(visual.correctAnswer.numerator, 1, reason: 'g3_p2_t2/$index');
+      expect(
+        visual.correctAnswer.denominator,
+        inInclusiveRange(2, 4),
+        reason: 'g3_p2_t2/$index',
+      );
+      expect(q.correctAnswer, visual.correctIndex, reason: 'g3_p2_t2/$index');
+      expect(
+        q.choices,
+        List<int>.generate(visual.choices.length, (i) => i),
+        reason: 'g3_p2_t2/$index',
+      );
+    }
+    expect(simpleVisual, greaterThan(0));
+    expect(simplePlain, greaterThan(0));
+
+    for (var index = 0; index < 80; index++) {
+      final q = TopicQuestionFactory.question(
+        topic: equivalentTopic,
+        strength: TopicStrength.medium,
+        random: random,
+        index: index,
+      );
+      final visual = q.mixedNumber!;
+
+      expect(q.isVisual, isTrue, reason: 'g3_p2_t3/$index');
+      expect(q.kind, QuestionKind.fractionOps, reason: 'g3_p2_t3/$index');
+      expect(visual.operation, '=', reason: 'g3_p2_t3/$index');
+      expect(
+        visual.correctAnswer.equalsValue(visual.num1),
+        isTrue,
+        reason: 'g3_p2_t3/$index correct choice is not equivalent',
+      );
+      for (final choice in visual.choices) {
+        if (choice.key != visual.correctAnswer.key) {
+          expect(
+            choice.equalsValue(visual.num1),
+            isFalse,
+            reason: 'g3_p2_t3/$index distractor is also equivalent',
+          );
+        }
+      }
+      expect(q.correctAnswer, visual.correctIndex, reason: 'g3_p2_t3/$index');
+      expect(
+        q.answerText,
+        visual.correctAnswer.toArabicString(),
+        reason: 'g3_p2_t3/$index',
+      );
+      expect(q.isCorrect(q.correctAnswer), isTrue, reason: 'g3_p2_t3/$index');
+    }
+  });
+
   test('adaptive pools cover every tier at the requested size', () {
     final config = ExamConfig(
       section: MathSection.mixed,

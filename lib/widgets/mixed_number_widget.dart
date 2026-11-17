@@ -91,8 +91,10 @@ class MixedNumberWidget extends StatelessWidget {
   }
 }
 
-/// Full visual expression for a generated mixed-number question:
+/// Full visual expression for a generated fraction question:
 /// `num1 ± num2 = answer` (or `= ؟` while the student is answering).
+/// For equivalent-fraction questions (`operation == '='`) it renders
+/// `num1 = answer` instead, since the second operand is the unknown.
 class MixedNumberExpression extends StatelessWidget {
   const MixedNumberExpression({
     super.key,
@@ -116,6 +118,8 @@ class MixedNumberExpression extends StatelessWidget {
       fontFamily: 'Tajawal',
     );
 
+    final showsSecondOperand = question.operation != '=';
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Row(
@@ -127,11 +131,13 @@ class MixedNumberExpression extends StatelessWidget {
             padding: EdgeInsets.symmetric(horizontal: fontSize * 0.3),
             child: Text(question.operationSymbol, style: symbolStyle),
           ),
-          _term(question.num2),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: fontSize * 0.3),
-            child: Text('=', style: symbolStyle),
-          ),
+          if (showsSecondOperand) ...[
+            _term(question.num2),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: fontSize * 0.3),
+              child: Text('=', style: symbolStyle),
+            ),
+          ],
           if (showResult)
             _term(question.correctAnswer)
           else

@@ -120,5 +120,43 @@ void main() {
         expect(find.text('؟'), findsOneWidget);
       }
     });
+
+    testWidgets('renders only the known fraction for equivalence questions', (
+      tester,
+    ) async {
+      final equivalence = MixedNumberQuestion(
+        num1: const MixedNumber(0, 1, 2),
+        num2: const MixedNumber(0, 3, 6),
+        operation: '=',
+        choices: const [
+          MixedNumber(0, 3, 6),
+          MixedNumber(0, 2, 6),
+        ],
+        correctIndex: 0,
+        questionText: '١/٢ = ؟',
+        explanation: 'كسر مكافئ.',
+        spokenText: 'ما الكسر المكافئ؟',
+      );
+
+      await tester.pumpWidget(
+        _wrap(MixedNumberExpression(question: equivalence)),
+      );
+
+      // Only the base fraction is drawn while answering.
+      expect(find.byType(MixedNumberWidget), findsOneWidget);
+      expect(find.text('١'), findsOneWidget);
+      expect(find.text('٢'), findsOneWidget);
+      expect(find.text('='), findsOneWidget);
+      expect(find.text('؟'), findsOneWidget);
+
+      await tester.pumpWidget(
+        _wrap(MixedNumberExpression(question: equivalence, showResult: true)),
+      );
+
+      expect(find.byType(MixedNumberWidget), findsNWidgets(2));
+      expect(find.text('٣'), findsOneWidget);
+      expect(find.text('٦'), findsOneWidget);
+      expect(find.text('؟'), findsNothing);
+    });
   });
 }

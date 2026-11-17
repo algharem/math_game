@@ -309,4 +309,85 @@ void main() {
     expect(mulCount, greaterThan(0));
     expect(divCount, greaterThan(0));
   });
+
+  test('generateEquivalentFractionQuestion keeps one equivalent choice', () {
+    final generator = MixedNumberGenerator(random: Random(83));
+
+    for (var i = 0; i < 250; i++) {
+      final q = generator.generateEquivalentFractionQuestion();
+      final base = q.num1;
+      final answer = q.correctAnswer;
+
+      expect(q.operation, '=');
+      expect(q.operationSymbol, '=');
+      expect(q.choices, hasLength(4), reason: 'iteration $i');
+      expect(
+        q.choices.map((choice) => choice.key).toSet(),
+        hasLength(4),
+        reason: 'duplicate choices on iteration $i',
+      );
+      expect(q.choices[q.correctIndex], answer);
+      expect(answer.equalsValue(base), isTrue,
+          reason: 'correct choice is not equivalent on iteration $i');
+      expect(answer.numerator, greaterThan(base.numerator),
+          reason: 'equivalent choice should be unreduced on iteration $i');
+      expect(answer.denominator, greaterThan(base.denominator),
+          reason: 'equivalent choice should have a larger denominator $i');
+
+      for (final choice in q.choices) {
+        expect(choice.numerator, lessThan(choice.denominator));
+        if (choice.key != answer.key) {
+          expect(
+            choice.equalsValue(base),
+            isFalse,
+            reason: 'a distractor is also equivalent on iteration $i',
+          );
+        }
+      }
+
+      expect(q.questionText, contains('؟'));
+      expect(q.questionText, contains(base.toArabicString()));
+      expect(q.explanation, isNotEmpty);
+      expect(q.spokenText, isNotEmpty);
+    }
+  });
+
+  test('generateSimpleFractionIdentification asks for one equal part', () {
+    final generator = MixedNumberGenerator(random: Random(97));
+
+    for (var i = 0; i < 250; i++) {
+      final q = generator.generateSimpleFractionIdentification();
+      final answer = q.correctAnswer;
+
+      expect(q.isWordProblem, isTrue);
+      expect(q.story, isNotEmpty);
+      expect(q.story!.first, isA<FractionStoryText>());
+      expect(q.questionText, contains('أجزاء متساوية'));
+      expect(q.choices, hasLength(4), reason: 'iteration $i');
+      expect(
+        q.choices.map((choice) => choice.key).toSet(),
+        hasLength(4),
+        reason: 'duplicate choices on iteration $i',
+      );
+      expect(q.choices[q.correctIndex], answer);
+      expect(answer.numerator, 1, reason: 'iteration $i');
+      expect(answer.whole, 0, reason: 'iteration $i');
+      expect(answer.denominator, inInclusiveRange(2, 4),
+          reason: 'iteration $i');
+
+      for (final choice in q.choices) {
+        expect(choice.numerator, lessThan(choice.denominator));
+        if (choice.key != answer.key) {
+          expect(
+            choice.equalsValue(answer),
+            isFalse,
+            reason: 'a distractor means the same fraction on iteration $i',
+          );
+        }
+      }
+
+      expect(q.explanation, isNotEmpty);
+      expect(q.spokenText, isNotEmpty);
+    }
+  });
 }

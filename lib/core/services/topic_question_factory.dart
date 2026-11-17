@@ -1552,12 +1552,38 @@ class TopicQuestionFactory {
 
   // ─── Full-book coverage: fractions ────────────────────────────────────
 
+  /// Half/third/quarter of a quantity (text) mixed with visual identification
+  /// questions where the student picks the fraction for one equal part.
   static Question _simpleFractions(
     CurriculumTopic topic,
     TopicEnvelope env,
     Random random,
     int index,
   ) {
+    if (random.nextBool()) {
+      final generated = MixedNumberGenerator(
+        random: random,
+      ).generateSimpleFractionIdentification();
+      final question = base(
+        topic: topic,
+        kind: QuestionKind.fractionOps,
+        tokens: [generated.questionText],
+        answer: generated.correctIndex,
+        choices: List<int>.generate(
+          generated.choices.length,
+          (choiceIndex) => choiceIndex,
+        ),
+        random: random,
+        explanation: generated.explanation,
+        spokenText: generated.spokenText,
+        index: index,
+        mixedNumber: generated,
+      );
+      return question.copyWith(
+        factKey: '${topic.id}:${generated.correctAnswer.toArabicString()}',
+      );
+    }
+
     const parts = [
       ('نصف', 2),
       ('ثلث', 3),
@@ -1584,38 +1610,36 @@ class TopicQuestionFactory {
     );
   }
 
+  /// `base = ؟` with visual equivalent-fraction choices, e.g. `1/2 = 3/6`.
   static Question _equivalentFractions(
     CurriculumTopic topic,
     TopicEnvelope env,
     Random random,
     int index,
   ) {
-    const base_ = [(1, 2), (2, 3), (3, 4), (1, 5), (2, 5)];
-    final pair = base_[random.nextInt(base_.length)];
-    final multiplier = _rand(random, 2, 6);
-    final targetDenominator = pair.$2 * multiplier;
-    final answer = pair.$1 * multiplier;
-    return base(
+    final generated = MixedNumberGenerator(
+      random: random,
+    ).generateEquivalentFractionQuestion();
+    final question = base(
       topic: topic,
       kind: QuestionKind.fractionOps,
       tokens: [
-        '${pair.$1}/${pair.$2}',
-        '=',
-        '؟ /',
-        targetDenominator,
+        generated.questionText,
+        generated.correctAnswer.toArabicString()
       ],
-      answer: answer,
-      choices: _choices(answer, random, candidates: [
-        answer + multiplier,
-        pair.$2,
-        targetDenominator,
-      ]),
+      answer: generated.correctIndex,
+      choices: List<int>.generate(
+        generated.choices.length,
+        (choiceIndex) => choiceIndex,
+      ),
       random: random,
-      explanation:
-          'كسر متساوي: ${pair.$1}/${pair.$2} = ${ArabicNumbers.formatInt(answer)}/${ArabicNumbers.formatInt(targetDenominator)}',
-      spokenText:
-          'ما البسط في الكسر المكافئ داخل مقام ${ArabicNumbers.formatInt(targetDenominator)} للكسر ${pair.$1}/${pair.$2}؟',
+      explanation: generated.explanation,
+      spokenText: generated.spokenText,
       index: index,
+      mixedNumber: generated,
+    );
+    return question.copyWith(
+      factKey: '${topic.id}:${generated.correctAnswer.toArabicString()}',
     );
   }
 

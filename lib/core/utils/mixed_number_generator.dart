@@ -50,6 +50,12 @@ class MixedNumber {
 
   String get key => '$whole:$numerator:$denominator';
 
+  /// Whether both fractions represent the same amount, even when written with
+  /// different numerators and denominators (e.g. `1/2` and `2/4`).
+  bool equalsValue(MixedNumber other) =>
+      toImproperNumerator() * other.denominator ==
+      other.toImproperNumerator() * denominator;
+
   @override
   String toString() => toArabicString();
 
@@ -112,7 +118,8 @@ class MixedNumberQuestion {
   final MixedNumber num1;
   final MixedNumber num2;
 
-  /// `+` or `-`.
+  /// Arithmetic operator (`+`, `-`, `*`, `/`) or `=` for an equivalent
+  /// fraction question, where only [num1] is shown before the blank.
   final String operation;
 
   final List<MixedNumber> choices;
@@ -631,12 +638,113 @@ class MixedNumberGenerator {
     return choices;
   }
 
+  /// Generates a `base = ؟` question whose correct choice is an unreduced
+  /// equivalent fraction (for example `1/2 = 3/6`). The prompt keeps the
+  /// target denominator hidden so the student compares the fraction values.
+  MixedNumberQuestion generateEquivalentFractionQuestion() {
+    const bases = <MixedNumber>[
+      MixedNumber(0, 1, 2),
+      MixedNumber(0, 2, 3),
+      MixedNumber(0, 3, 4),
+      MixedNumber(0, 1, 3),
+      MixedNumber(0, 1, 5),
+      MixedNumber(0, 2, 5),
+      MixedNumber(0, 3, 5),
+    ];
+    final base = bases[_random.nextInt(bases.length)];
+    final multiplier = _random.nextInt(5) + 2;
+    final targetDenominator = base.denominator * multiplier;
+    final correct = MixedNumber(
+      0,
+      base.numerator * multiplier,
+      targetDenominator,
+    );
+
+    final choices = _buildVisualChoices(
+      correct,
+      [
+        // Forgot to multiply the numerator as well.
+        MixedNumber(0, base.numerator, targetDenominator),
+        MixedNumber(0, base.numerator * multiplier + 1, targetDenominator),
+        // Used one extra multiple in the numerator.
+        MixedNumber(0, base.numerator * (multiplier + 1), targetDenominator),
+        // Multiplied the numerator but kept the old denominator.
+        MixedNumber(0, base.numerator * multiplier, base.denominator),
+      ],
+      isValid: (candidate) => !candidate.equalsValue(base),
+    );
+    final correctIndex = choices.indexOf(correct);
+
+    final baseText = base.toArabicString();
+    final answerText = correct.toArabicString();
+    final multiplierText = ArabicNumbers.formatInt(multiplier);
+    final targetText = ArabicNumbers.formatInt(targetDenominator);
+
+    return MixedNumberQuestion(
+      num1: base,
+      num2: correct,
+      operation: '=',
+      choices: choices,
+      correctIndex: correctIndex,
+      questionText: '$baseText = ؟',
+      explanation: 'نضرب بسط ومقام $baseText في $multiplierText: '
+          '${ArabicNumbers.formatInt(base.numerator)} × $multiplierText = '
+          '${ArabicNumbers.formatInt(correct.numerator)}، و'
+          '${ArabicNumbers.formatInt(base.denominator)} × $multiplierText = '
+          '$targetText، فيصبح الكسر $answerText، وهو مكافئ لـ $baseText.',
+      spokenText: 'ما الكسر المكافئ للكسر ${base.toSpokenString()}؟',
+    );
+  }
+
+  /// Generates a grade-3 identification question: a shape is split into equal
+  /// parts and one part is taken. The story describes the situation and the
+  /// student picks the matching fraction from visual choices.
+  MixedNumberQuestion generateSimpleFractionIdentification() {
+    final denominator = _random.nextInt(3) + 2; // النصف، الثلث، الربع.
+    final correct = MixedNumber(0, 1, denominator);
+    final otherDenominators = <int>[2, 3, 4, 5]
+        .where((candidate) => candidate != denominator)
+        .toList(growable: false);
+
+    final choices = _buildVisualChoices(
+      correct,
+      [
+        for (final other in otherDenominators) MixedNumber(0, 1, other),
+        // Took all but one part instead.
+        MixedNumber(0, denominator - 1, denominator),
+      ],
+      isValid: (candidate) => !candidate.equalsValue(correct),
+    );
+    final correctIndex = choices.indexOf(correct);
+
+    final name = _storyNames[_random.nextInt(_storyNames.length)];
+    final partsText = ArabicNumbers.formatInt(denominator);
+    final answerText = correct.toArabicString();
+    final storyText = 'قسّم $name كعكة إلى $partsText أجزاء متساوية '
+        'وأخذ جزءًا واحدًا. ما الكسر الذي يمثل ما أخذه؟';
+
+    return MixedNumberQuestion(
+      num1: correct,
+      num2: correct,
+      operation: '=',
+      choices: choices,
+      correctIndex: correctIndex,
+      questionText: storyText,
+      explanation: 'الكعكة مقسومة إلى $partsText أجزاء متساوية، '
+          'والجزء الواحد يمثل $answerText.',
+      spokenText: storyText,
+      story: [FractionStoryText(storyText)],
+    );
+  }
+
   /// Builds four unique fraction choices around [correct], preferring the
   /// plausible distractor [candidates] before filling with random fractions.
+  /// [isValid] can reject choices that would also be correct answers.
   List<MixedNumber> _buildVisualChoices(
     MixedNumber correct,
-    List<MixedNumber> candidates,
-  ) {
+    List<MixedNumber> candidates, {
+    bool Function(MixedNumber candidate)? isValid,
+  }) {
     final pool = <MixedNumber>[correct];
     final keys = <String>{correct.key};
 
@@ -645,6 +753,7 @@ class MixedNumberGenerator {
       if (candidate.denominator <= 0) return;
       if (candidate.numerator >= candidate.denominator) return;
       if (candidate.whole == 0 && candidate.numerator == 0) return;
+      if (isValid != null && !isValid(candidate)) return;
       if (keys.add(candidate.key)) pool.add(candidate);
     }
 
