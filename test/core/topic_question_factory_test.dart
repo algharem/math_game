@@ -241,8 +241,15 @@ void main() {
         reason: 'no fraction word problem generated for g4_p2_t5');
   });
 
-  test('grade-5 fraction topics generate visual fraction payloads', () {
+  test('fraction topics generate visual fraction payloads', () {
     const topics = [
+      CurriculumTopic(
+        id: 'g3_p2_t4',
+        grade: 3,
+        part: 2,
+        title: 'جمع وطرح الكسور ذات المقامات المتساوية',
+        unitName: 'الكسور',
+      ),
       CurriculumTopic(
         id: 'g5_p1_t3',
         grade: 5,
@@ -297,7 +304,21 @@ void main() {
 
       expect(visualFound, isTrue,
           reason: '${topic.id} produced no visual fraction questions');
-      if (topic.id == 'g5_p1_t3') {
+      if (topic.id == 'g3_p2_t4') {
+        expect(unlikeFound, isFalse);
+        expect(operations, containsAll(<String>{'+', '-'}));
+        for (var index = 0; index < 40; index++) {
+          final q = TopicQuestionFactory.question(
+            topic: topic,
+            strength: TopicStrength.medium,
+            random: random,
+            index: index,
+          );
+          final visual = q.mixedNumber!;
+          expect(visual.num1.denominator, lessThanOrEqualTo(8));
+          expect(visual.num1.denominator, visual.num2.denominator);
+        }
+      } else if (topic.id == 'g5_p1_t3') {
         expect(unlikeFound, isTrue);
         expect(operations, containsAll(<String>{'+', '-'}));
       } else {

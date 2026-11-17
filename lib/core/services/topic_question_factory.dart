@@ -1619,41 +1619,35 @@ class TopicQuestionFactory {
     );
   }
 
+  /// a/d ± b/d with like denominators, rendered with fraction bars. Grade 3
+  /// keeps the denominators small (3–8) so the visual choices stay simple.
   static Question _likeFractionOps(
     CurriculumTopic topic,
     TopicEnvelope env,
     Random random,
     int index,
   ) {
-    final denominator = _rand(random, 4, 10);
-    final first = _rand(random, 1, denominator - 2);
-    final second = _rand(random, 1, denominator - first - 1);
-    final isAdd = random.nextBool();
-    final answer = isAdd
-        ? first + second
-        : first - second > 0
-            ? first - second
-            : first + second;
-    return base(
+    final generated = MixedNumberGenerator(
+      random: random,
+      maxDenominator: 8,
+    ).generateLikeFractionQuestion(add: random.nextBool());
+    final question = base(
       topic: topic,
       kind: QuestionKind.fractionOps,
-      tokens: [
-        '$first/$denominator',
-        isAdd ? '+' : '−',
-        '$second/$denominator',
-        '= ? /$denominator',
-      ],
-      answer: answer,
-      choices: _choices(answer, random, candidates: [
-        answer + 1,
-        denominator,
-        answer > 1 ? answer - 2 : answer + 3,
-      ]),
+      tokens: [generated.questionText],
+      answer: generated.correctIndex,
+      choices: List<int>.generate(
+        generated.choices.length,
+        (choiceIndex) => choiceIndex,
+      ),
       random: random,
-      explanation:
-          'مقام مشترك ثابت: ($first ${isAdd ? '+' : '−'} $second)/$denominator = $answer/$denominator',
-      spokenText: 'أوجد ناتج الكسرين ذوي المقام $denominator (بالمقام نفسه)',
+      explanation: generated.explanation,
+      spokenText: generated.spokenText,
       index: index,
+      mixedNumber: generated,
+    );
+    return question.copyWith(
+      factKey: '${topic.id}:${generated.correctAnswer.toArabicString()}',
     );
   }
 
