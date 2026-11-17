@@ -1389,6 +1389,37 @@ class TopicQuestionFactory {
   // answer; visual fraction questions attach a `MixedNumberQuestion` payload
   // (whole == 0 for plain fractions) and use the generated choice index.
 
+  /// Wraps a generated visual fraction question in the app's [Question] model.
+  /// Choice values are indices into [MixedNumberQuestion.choices], so the
+  /// correct answer is the generated `correctIndex`.
+  static Question _visualFractionQuestion({
+    required CurriculumTopic topic,
+    required Random random,
+    required int index,
+    required MixedNumberQuestion generated,
+    QuestionKind kind = QuestionKind.fractionOps,
+    List<Object?>? tokens,
+  }) {
+    final question = base(
+      topic: topic,
+      kind: kind,
+      tokens: tokens ?? [generated.questionText],
+      answer: generated.correctIndex,
+      choices: List<int>.generate(
+        generated.choices.length,
+        (choiceIndex) => choiceIndex,
+      ),
+      random: random,
+      explanation: generated.explanation,
+      spokenText: generated.spokenText,
+      index: index,
+      mixedNumber: generated,
+    );
+    return question.copyWith(
+      factKey: '${topic.id}:${generated.correctAnswer.toArabicString()}',
+    );
+  }
+
   static Question _grade4Fractions(
     CurriculumTopic topic,
     TopicEnvelope env,
@@ -1416,25 +1447,12 @@ class TopicQuestionFactory {
     Random random,
     int index,
   ) {
-    final generated =
-        MixedNumberGenerator(random: random).generateWordProblem();
-    final question = base(
+    return _visualFractionQuestion(
       topic: topic,
-      kind: QuestionKind.wordProblem,
-      tokens: [generated.questionText],
-      answer: generated.correctIndex,
-      choices: List<int>.generate(
-        generated.choices.length,
-        (choiceIndex) => choiceIndex,
-      ),
       random: random,
-      explanation: generated.explanation,
-      spokenText: generated.spokenText,
       index: index,
-      mixedNumber: generated,
-    );
-    return question.copyWith(
-      factKey: '${topic.id}:${generated.correctAnswer.toArabicString()}',
+      kind: QuestionKind.wordProblem,
+      generated: MixedNumberGenerator(random: random).generateWordProblem(),
     );
   }
 
@@ -1446,26 +1464,13 @@ class TopicQuestionFactory {
     int index, {
     required bool add,
   }) {
-    final generated = MixedNumberGenerator(
-      random: random,
-    ).generateLikeFractionQuestion(add: add);
-    final question = base(
+    return _visualFractionQuestion(
       topic: topic,
-      kind: QuestionKind.fractionOps,
-      tokens: [generated.questionText],
-      answer: generated.correctIndex,
-      choices: List<int>.generate(
-        generated.choices.length,
-        (choiceIndex) => choiceIndex,
-      ),
       random: random,
-      explanation: generated.explanation,
-      spokenText: generated.spokenText,
       index: index,
-      mixedNumber: generated,
-    );
-    return question.copyWith(
-      factKey: '${topic.id}:${generated.correctAnswer.toArabicString()}',
+      generated: MixedNumberGenerator(
+        random: random,
+      ).generateLikeFractionQuestion(add: add),
     );
   }
 
@@ -1476,24 +1481,12 @@ class TopicQuestionFactory {
     Random random,
     int index,
   ) {
-    final generated = MixedNumberGenerator(random: random).generateQuestion();
-    final question = base(
+    return _visualFractionQuestion(
       topic: topic,
-      kind: QuestionKind.mixedNumber,
-      tokens: [generated.questionText],
-      answer: generated.correctIndex,
-      choices: List<int>.generate(
-        generated.choices.length,
-        (choiceIndex) => choiceIndex,
-      ),
       random: random,
-      explanation: generated.explanation,
-      spokenText: generated.spokenText,
       index: index,
-      mixedNumber: generated,
-    );
-    return question.copyWith(
-      factKey: '${topic.id}:${generated.correctAnswer.toArabicString()}',
+      kind: QuestionKind.mixedNumber,
+      generated: MixedNumberGenerator(random: random).generateQuestion(),
     );
   }
 
@@ -1561,26 +1554,13 @@ class TopicQuestionFactory {
     int index,
   ) {
     if (random.nextBool()) {
-      final generated = MixedNumberGenerator(
-        random: random,
-      ).generateSimpleFractionIdentification();
-      final question = base(
+      return _visualFractionQuestion(
         topic: topic,
-        kind: QuestionKind.fractionOps,
-        tokens: [generated.questionText],
-        answer: generated.correctIndex,
-        choices: List<int>.generate(
-          generated.choices.length,
-          (choiceIndex) => choiceIndex,
-        ),
         random: random,
-        explanation: generated.explanation,
-        spokenText: generated.spokenText,
         index: index,
-        mixedNumber: generated,
-      );
-      return question.copyWith(
-        factKey: '${topic.id}:${generated.correctAnswer.toArabicString()}',
+        generated: MixedNumberGenerator(
+          random: random,
+        ).generateSimpleFractionIdentification(),
       );
     }
 
@@ -1620,26 +1600,16 @@ class TopicQuestionFactory {
     final generated = MixedNumberGenerator(
       random: random,
     ).generateEquivalentFractionQuestion();
-    final question = base(
+    return _visualFractionQuestion(
       topic: topic,
-      kind: QuestionKind.fractionOps,
+      random: random,
+      index: index,
+      generated: generated,
+      // Include the answer text so the question-bank signature stays unique.
       tokens: [
         generated.questionText,
-        generated.correctAnswer.toArabicString()
+        generated.correctAnswer.toArabicString(),
       ],
-      answer: generated.correctIndex,
-      choices: List<int>.generate(
-        generated.choices.length,
-        (choiceIndex) => choiceIndex,
-      ),
-      random: random,
-      explanation: generated.explanation,
-      spokenText: generated.spokenText,
-      index: index,
-      mixedNumber: generated,
-    );
-    return question.copyWith(
-      factKey: '${topic.id}:${generated.correctAnswer.toArabicString()}',
     );
   }
 
@@ -1651,27 +1621,14 @@ class TopicQuestionFactory {
     Random random,
     int index,
   ) {
-    final generated = MixedNumberGenerator(
-      random: random,
-      maxDenominator: 8,
-    ).generateLikeFractionQuestion(add: random.nextBool());
-    final question = base(
+    return _visualFractionQuestion(
       topic: topic,
-      kind: QuestionKind.fractionOps,
-      tokens: [generated.questionText],
-      answer: generated.correctIndex,
-      choices: List<int>.generate(
-        generated.choices.length,
-        (choiceIndex) => choiceIndex,
-      ),
       random: random,
-      explanation: generated.explanation,
-      spokenText: generated.spokenText,
       index: index,
-      mixedNumber: generated,
-    );
-    return question.copyWith(
-      factKey: '${topic.id}:${generated.correctAnswer.toArabicString()}',
+      generated: MixedNumberGenerator(
+        random: random,
+        maxDenominator: 8,
+      ).generateLikeFractionQuestion(add: random.nextBool()),
     );
   }
 
@@ -1683,26 +1640,13 @@ class TopicQuestionFactory {
     Random random,
     int index,
   ) {
-    final generated = MixedNumberGenerator(
-      random: random,
-    ).generateUnlikeFractionQuestion(add: random.nextBool());
-    final question = base(
+    return _visualFractionQuestion(
       topic: topic,
-      kind: QuestionKind.fractionOps,
-      tokens: [generated.questionText],
-      answer: generated.correctIndex,
-      choices: List<int>.generate(
-        generated.choices.length,
-        (choiceIndex) => choiceIndex,
-      ),
       random: random,
-      explanation: generated.explanation,
-      spokenText: generated.spokenText,
       index: index,
-      mixedNumber: generated,
-    );
-    return question.copyWith(
-      factKey: '${topic.id}:${generated.correctAnswer.toArabicString()}',
+      generated: MixedNumberGenerator(
+        random: random,
+      ).generateUnlikeFractionQuestion(add: random.nextBool()),
     );
   }
 
@@ -1714,26 +1658,13 @@ class TopicQuestionFactory {
     Random random,
     int index,
   ) {
-    final generated = MixedNumberGenerator(
-      random: random,
-    ).generateFractionMulDivQuestion(multiply: random.nextBool());
-    final question = base(
+    return _visualFractionQuestion(
       topic: topic,
-      kind: QuestionKind.fractionOps,
-      tokens: [generated.questionText],
-      answer: generated.correctIndex,
-      choices: List<int>.generate(
-        generated.choices.length,
-        (choiceIndex) => choiceIndex,
-      ),
       random: random,
-      explanation: generated.explanation,
-      spokenText: generated.spokenText,
       index: index,
-      mixedNumber: generated,
-    );
-    return question.copyWith(
-      factKey: '${topic.id}:${generated.correctAnswer.toArabicString()}',
+      generated: MixedNumberGenerator(
+        random: random,
+      ).generateFractionMulDivQuestion(multiply: random.nextBool()),
     );
   }
 
@@ -1871,11 +1802,12 @@ class TopicQuestionFactory {
     int index,
   ) {
     final tenths = _rand(random, 3, 9);
+    final decimal = ArabicNumbers.formatNum(tenths / 10);
     if (random.nextBool()) {
       return base(
         topic: topic,
         kind: QuestionKind.fractionOps,
-        tokens: ['0.', tenths, '× 10 = ?'],
+        tokens: ['$decimal × ${ArabicNumbers.formatInt(10)} = ؟'],
         answer: tenths,
         choices: _choices(tenths, random, candidates: [
           tenths * 10,
@@ -1883,47 +1815,73 @@ class TopicQuestionFactory {
           tenths > 1 ? tenths - 1 : tenths + 2,
         ]),
         random: random,
-        explanation:
-            'الضرب في 10 يحرّك الفاصلة يميناً: 0.$tenths × 10 = ${ArabicNumbers.formatInt(tenths)}',
-        spokenText: 'ما ناتج ضرب 0.$tenths في 10؟',
+        explanation: 'الضرب في ${ArabicNumbers.formatInt(10)} يحرّك الفاصلة '
+            'يميناً: $decimal × ${ArabicNumbers.formatInt(10)} = '
+            '${ArabicNumbers.formatInt(tenths)}',
+        spokenText: 'ما ناتج ضرب $decimal في ${ArabicNumbers.formatInt(10)}؟',
         index: index,
       );
     }
     final other = _rand(random, 1, tenths - 1);
+    final otherDecimal = ArabicNumbers.formatNum(other / 10);
     return base(
       topic: topic,
       kind: QuestionKind.compareNumbers,
-      tokens: ['أيهما أكبر: 0.', tenths, 'أم 0.', other, '؟'],
+      tokens: ['أيهما أكبر: $decimal أم $otherDecimal؟'],
       answer: tenths,
       choices:
           _choices(tenths, random, candidates: [other, tenths + 1, other + 1]),
       random: random,
-      explanation: '0.$tenths أكبر من 0.$other (بالمقارنة في خانة الأعشار)',
-      spokenText: 'أيهما أكبر: 0.$tenths أم 0.$other؟',
+      explanation: '$decimal أكبر من $otherDecimal '
+          '(بالمقارنة في خانة الأعشار)',
+      spokenText: 'أيهما أكبر: $decimal أم $otherDecimal؟',
       index: index,
     );
   }
 
+  /// The topic covers fractions and decimals, so it alternates decimal
+  /// place-value work with visual fraction operations.
   static Question _advancedFractionDecimal(
     CurriculumTopic topic,
     TopicEnvelope env,
     Random random,
     int index,
   ) {
+    switch (random.nextInt(4)) {
+      case 1:
+        return _unlikeFractionOps(topic, env, random, index);
+      case 2:
+        return _fractionMulDiv(topic, env, random, index);
+      case 3:
+        return _mixedNumberAddSub(topic, random, index);
+      default:
+        return _decimalTimesHundred(topic, random, index);
+    }
+  }
+
+  static Question _decimalTimesHundred(
+    CurriculumTopic topic,
+    Random random,
+    int index,
+  ) {
     final whole = _rand(random, 11, 99);
+    final decimal = ArabicNumbers.formatNum(whole + 0.5);
+    final answer = whole * 100 + 50;
     return base(
       topic: topic,
       kind: QuestionKind.fractionOps,
-      tokens: [whole, '.5 × 100 = ?'],
-      answer: whole * 100 + 50,
-      choices: _choices(whole * 100 + 50, random, candidates: [
+      tokens: ['$decimal × ${ArabicNumbers.formatInt(100)} = ؟'],
+      answer: answer,
+      choices: _choices(answer, random, candidates: [
         whole * 100,
         whole * 10 + 5,
         whole * 100 + 5,
       ]),
       random: random,
-      explanation: 'الضرب في 100 يحرك الفاصلة خانتين: ناتج ${whole * 100}.5',
-      spokenText: 'ما ناتج ضرب $whole.5 في 100؟',
+      explanation: 'الضرب في ${ArabicNumbers.formatInt(100)} يحرّك الفاصلة '
+          'خانتين إلى اليمين: $decimal × ${ArabicNumbers.formatInt(100)} = '
+          '${ArabicNumbers.formatInt(answer)}',
+      spokenText: 'ما ناتج ضرب $decimal في ${ArabicNumbers.formatInt(100)}؟',
       index: index,
     );
   }

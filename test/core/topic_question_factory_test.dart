@@ -416,6 +416,92 @@ void main() {
     }
   });
 
+  test('grade-6 fractions-decimals topic mixes visual fraction operations', () {
+    const topic = CurriculumTopic(
+      id: 'g6_p1_t1',
+      grade: 6,
+      part: 1,
+      title: 'العمليات المتقدمة على الكسور والكسور العشرية',
+      unitName: 'الكسور',
+    );
+    final random = Random(41);
+    var visualFound = false;
+    var decimalFound = false;
+    final operations = <String>{};
+
+    for (var index = 0; index < 200; index++) {
+      final q = TopicQuestionFactory.question(
+        topic: topic,
+        strength: TopicStrength.medium,
+        random: random,
+        index: index,
+      );
+      final visual = q.mixedNumber;
+      if (visual == null) {
+        decimalFound = true;
+        expect(q.equationText, contains('٫'), reason: 'g6_p1_t1/$index');
+        expect(q.equationText, isNot(contains(' . ')),
+            reason: 'g6_p1_t1/$index');
+        continue;
+      }
+
+      visualFound = true;
+      operations.add(visual.operation);
+      expect(q.isVisual, isTrue, reason: 'g6_p1_t1/$index');
+      expect(
+        q.kind,
+        isIn(const [QuestionKind.fractionOps, QuestionKind.mixedNumber]),
+        reason: 'g6_p1_t1/$index',
+      );
+      expect(q.correctAnswer, visual.correctIndex, reason: 'g6_p1_t1/$index');
+      expect(
+        q.choices,
+        List<int>.generate(visual.choices.length, (i) => i),
+        reason: 'g6_p1_t1/$index',
+      );
+      expect(
+        q.answerText,
+        visual.correctAnswer.toArabicString(),
+        reason: 'g6_p1_t1/$index',
+      );
+      expect(q.isCorrect(q.correctAnswer), isTrue, reason: 'g6_p1_t1/$index');
+    }
+
+    expect(visualFound, isTrue,
+        reason: 'g6_p1_t1 produced no visual fraction questions');
+    expect(decimalFound, isTrue,
+        reason: 'g6_p1_t1 produced no decimal questions');
+    expect(operations, containsAll(<String>{'+', '-', '*', '/'}));
+  });
+
+  test('decimal topic renders Arabic decimal values', () {
+    const topic = CurriculumTopic(
+      id: 'g5_p2_t2',
+      grade: 5,
+      part: 2,
+      title: 'الكسور العشرية (القيمة المنزلية والعمليات)',
+      unitName: 'الأعداد العشرية',
+    );
+    final random = Random(5);
+
+    for (var index = 0; index < 80; index++) {
+      final q = TopicQuestionFactory.question(
+        topic: topic,
+        strength: TopicStrength.medium,
+        random: random,
+        index: index,
+      );
+      expect(q.mixedNumber, isNull, reason: 'g5_p2_t2/$index');
+      expect(q.equationText, contains('٫'), reason: 'g5_p2_t2/$index');
+      expect(q.equationText, isNot(contains('0.')),
+          reason: 'g5_p2_t2/$index western decimal');
+      expect(q.equationText, isNot(contains(' . ')),
+          reason: 'g5_p2_t2/$index split decimal token');
+      expect(q.explanation.trim(), isNotEmpty, reason: 'g5_p2_t2/$index');
+      expect(q.correctAnswer, isIn(q.choices), reason: 'g5_p2_t2/$index');
+    }
+  });
+
   test('adaptive pools cover every tier at the requested size', () {
     final config = ExamConfig(
       section: MathSection.mixed,
