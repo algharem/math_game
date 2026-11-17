@@ -122,6 +122,40 @@ Question _plainQuestion() {
   );
 }
 
+Question _equivalenceQuestion() {
+  final generated = MixedNumberGenerator(
+    random: Random(13),
+  ).generateEquivalentFractionQuestion();
+  return Question(
+    id: 'equivalence-1',
+    kind: QuestionKind.fractionOps,
+    tokens: [generated.questionText, generated.correctAnswer.toArabicString()],
+    correctAnswer: generated.correctIndex,
+    choices: List<int>.generate(generated.choices.length, (index) => index),
+    explanation: generated.explanation,
+    spokenText: generated.spokenText,
+    topicId: 'g3_p2_t3',
+    mixedNumber: generated,
+  );
+}
+
+Question _simpleFractionQuestion() {
+  final generated = MixedNumberGenerator(
+    random: Random(21),
+  ).generateSimpleFractionIdentification();
+  return Question(
+    id: 'simple-fraction-1',
+    kind: QuestionKind.fractionOps,
+    tokens: [generated.questionText],
+    correctAnswer: generated.correctIndex,
+    choices: List<int>.generate(generated.choices.length, (index) => index),
+    explanation: generated.explanation,
+    spokenText: generated.spokenText,
+    topicId: 'g3_p2_t2',
+    mixedNumber: generated,
+  );
+}
+
 Question _orderQuestion() {
   const order = FractionOrderQuestion(
     fractions: [
@@ -322,6 +356,124 @@ void main() {
 
     // The first visual choice (after the two story fractions) is 5/7.
     final firstChoice = find.byType(MixedNumberWidget).at(2);
+    await tester.ensureVisible(firstChoice);
+    await tester.tap(firstChoice);
+    await tester.pump();
+
+    expect(tester.widget<PressButton>(confirm).onPressed, isNotNull);
+
+    await tester.tap(confirm);
+    await tester.pumpAndSettle();
+
+    expect(find.text('السؤال ٢ من ٢'), findsOneWidget);
+    expect(find.byType(FractionStoryPrompt), findsNothing);
+  });
+
+  testWidgets(
+      'equivalent-fraction question shows one known fraction and visual choices in typed mode',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final config = ExamConfig(
+      section: MathSection.mixed,
+      title: 'اختبار الكسور',
+      questionCount: 2,
+      answerMode: AnswerMode.typed,
+      topicIds: const ['g3_p2_t3'],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          audioServiceProvider.overrideWithValue(_SilentAudioService()),
+          ttsServiceProvider.overrideWithValue(_SilentTtsService()),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.build(highContrast: false, largeText: false),
+          home: QuizScreen(
+            launchData: QuizLaunchData(
+              config: config,
+              questions: [_equivalenceQuestion(), _plainQuestion()],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // One known fraction in the prompt plus four visual choices.
+    expect(find.byType(MixedNumberExpression), findsOneWidget);
+    expect(find.byType(MixedNumberWidget), findsNWidgets(5));
+    expect(find.text('='), findsOneWidget);
+    expect(find.text('؟'), findsOneWidget);
+    expect(find.byType(FractionStoryPrompt), findsNothing);
+
+    final confirm = find.widgetWithText(PressButton, 'تأكيد الإجابة');
+    expect(tester.widget<PressButton>(confirm).onPressed, isNull);
+
+    // Skip the prompt fraction; tap the first choice.
+    final firstChoice = find.byType(MixedNumberWidget).at(1);
+    await tester.ensureVisible(firstChoice);
+    await tester.tap(firstChoice);
+    await tester.pump();
+
+    expect(tester.widget<PressButton>(confirm).onPressed, isNotNull);
+
+    await tester.tap(confirm);
+    await tester.pumpAndSettle();
+
+    expect(find.text('السؤال ٢ من ٢'), findsOneWidget);
+    expect(find.byType(MixedNumberExpression), findsNothing);
+  });
+
+  testWidgets(
+      'simple-fraction identification shows the story and visual choices in typed mode',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final config = ExamConfig(
+      section: MathSection.mixed,
+      title: 'اختبار الكسور',
+      questionCount: 2,
+      answerMode: AnswerMode.typed,
+      topicIds: const ['g3_p2_t2'],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          audioServiceProvider.overrideWithValue(_SilentAudioService()),
+          ttsServiceProvider.overrideWithValue(_SilentTtsService()),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.build(highContrast: false, largeText: false),
+          home: QuizScreen(
+            launchData: QuizLaunchData(
+              config: config,
+              questions: [_simpleFractionQuestion(), _plainQuestion()],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(FractionStoryPrompt), findsOneWidget);
+    expect(find.byType(MixedNumberExpression), findsNothing);
+    expect(find.textContaining('أجزاء متساوية'), findsOneWidget);
+    // Four visual choices; the story itself only has text.
+    expect(find.byType(MixedNumberWidget), findsNWidgets(4));
+
+    final confirm = find.widgetWithText(PressButton, 'تأكيد الإجابة');
+    expect(tester.widget<PressButton>(confirm).onPressed, isNull);
+
+    final firstChoice = find.byType(MixedNumberWidget).first;
     await tester.ensureVisible(firstChoice);
     await tester.tap(firstChoice);
     await tester.pump();
