@@ -11,6 +11,9 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
+*.bak
+*.orig
+*.tmp
 
 # IntelliJ related
 *.iml
@@ -33,6 +36,34 @@ migrate_working_dir/
 .pub/
 /build/
 
+# Local-only material kept out of the repository: source textbooks (large
+# PDFs), generated docs/coverage, extracted question banks and prompt notes.
+/source_pdfs/
+/docs/
+/coverage/
+/question_bank/
+/prompts/
+
+# Local archives and scratch bundles
+lib.tar.xz
+*.tar.xz
+*.tar.gz
+*.tgz
+*.zip
+*.7z
+*.rar
+
+# Built app packages (never commit installers)
+*.apk
+*.aab
+*.ipa
+
+# Agent/tooling state kept on this machine only
+.agents/
+skills-lock.json
+.opencode/
+.claude/
+
 # Symbolication related
 app.*.symbols
 
@@ -49,6 +80,10 @@ app.*.map.json
 /android/app/upload-keystore.jks
 /android/app/*.keystore
 /android/app/*.jks
+
+# Local environment files
+.env
+.env.*
 
 # Firebase config contains the API key; keep it local (use the Firebase
 # console / CI secrets to provision it on build machines).
