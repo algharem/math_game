@@ -19,6 +19,7 @@ Future<void> main() async {
     await applyWorkaroundToOpenSqlite3OnOldAndroidVersions();
   }
   await DataBackupService.applyPendingRestoreIfAny();
+  final restoreError = await DataBackupService.takeLastRestoreError();
 
   final preferences = await SharedPreferences.getInstance();
   final settingsService = SettingsService(preferences);
@@ -35,6 +36,7 @@ Future<void> main() async {
         settingsServiceProvider.overrideWithValue(settingsService),
         audioServiceProvider.overrideWithValue(audio),
         ttsServiceProvider.overrideWithValue(tts),
+        pendingRestoreErrorProvider.overrideWithValue(restoreError),
       ],
       child: const MathHeroesApp(),
     ),

@@ -15,22 +15,6 @@ subprojects {
 }
 
 subprojects {
-    tasks.configureEach {
-        if (name.startsWith("extract") && name.endsWith("Annotations")) {
-            enabled = false
-        }
-    }
-    tasks.configureEach {
-        if (name == "syncDebugLibJars" || name == "syncReleaseLibJars") {
-            def variant = name.contains("Debug") ? "debug" : "release"
-            def dir = file("${buildDir}/intermediates/annotations_typedef_file/${variant}")
-            dir.mkdirs()
-            new File(dir, "typedefs.txt").text = ""
-        }
-    }
-}
-
-subprojects {
     configurations.all {
         resolutionStrategy {
             force "org.jetbrains.kotlin:kotlin-stdlib:1.8.22"

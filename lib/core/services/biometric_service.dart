@@ -1,8 +1,58 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 export 'package:local_auth/local_auth.dart' show BiometricType;
+
+/// Why a biometric prompt did not succeed. Keeping this typed lets the UI show
+/// an actionable Arabic message instead of a generic "try again".
+enum BiometricFailure {
+  notEnabled,
+  notAvailable,
+  notEnrolled,
+  passcodeNotSet,
+  lockedOut,
+  permanentlyLockedOut,
+  cancelled,
+  unsupportedActivity,
+  unknown,
+}
+
+class BiometricOutcome {
+  const BiometricOutcome.success()
+      : succeeded = true,
+        failure = null;
+
+  const BiometricOutcome.failed(this.failure) : succeeded = false;
+
+  final bool succeeded;
+  final BiometricFailure? failure;
+
+  String get arabicMessage {
+    switch (failure) {
+      case BiometricFailure.notEnabled:
+        return 'المصادقة الحيوية غير مفعلة لهذا الحساب.';
+      case BiometricFailure.notAvailable:
+        return 'جهازك لا يدعم المصادقة الحيوية.';
+      case BiometricFailure.notEnrolled:
+        return 'لم تسجّل بصمة أو تعرف وجه على هذا الجهاز. أضفها من إعدادات الجهاز ثم حاول مرة أخرى.';
+      case BiometricFailure.passcodeNotSet:
+        return 'يجب تفعيل قفل الشاشة (رمز PIN أو نمط أو كلمة مرور) لاستخدام المصادقة الحيوية.';
+      case BiometricFailure.lockedOut:
+        return 'محاولات كثيرة غير ناجحة. انتظر قليلاً ثم حاول مرة أخرى.';
+      case BiometricFailure.permanentlyLockedOut:
+        return 'تم قفل المصادقة الحيوية. افتح قفل الشاشة على جهازك ثم حاول مجدداً.';
+      case BiometricFailure.cancelled:
+        return 'تم إلغاء المصادقة الحيوية.';
+      case BiometricFailure.unsupportedActivity:
+        return 'تعذر تشغيل المصادقة الحيوية على هذا الجهاز.';
+      case BiometricFailure.unknown:
+      case null:
+        return 'تعذر تفعيل المصادقة الحيوية. حاول مرة أخرى.';
+    }
+  }
+}
 
 class BiometricService {
   BiometricService();
@@ -45,27 +95,53 @@ class BiometricService {
     await prefs.setBool('$_biometricEnabledKey$userId', enabled);
   }
 
-  /// Authenticate user with biometric
+  /// Authenticate user with biometric.
+  ///
+  /// [requireEnabled] is false while the user is turning biometric login on:
+  /// the flag is only written after a successful prompt, so checking it first
+  /// would always fail.
   Future<bool> authenticate({
     required String userId,
     String localizedReason = 'المصادقة باستخدام البصمة',
     String? cancelLabel = 'إلغاء',
     String? goToSettingsLabel = 'الإعدادات',
+    bool requireEnabled = true,
   }) async {
+    final outcome = await authenticateWithDetails(
+      userId: userId,
+      localizedReason: localizedReason,
+      cancelLabel: cancelLabel,
+      goToSettingsLabel: goToSettingsLabel,
+      requireEnabled: requireEnabled,
+    );
+    return outcome.succeeded;
+  }
+
+  /// Same as [authenticate] but reports *why* it failed so the UI can show a
+  /// specific Arabic message instead of a generic "try again".
+  Future<BiometricOutcome> authenticateWithDetails({
+    required String userId,
+    String localizedReason = 'المصادقة باستخدام البصمة',
+    String? cancelLabel = 'إلغاء',
+    String? goToSettingsLabel = 'الإعدادات',
+    bool requireEnabled = true,
+  }) async {
+    if (requireEnabled && !await isBiometricEnabled(userId)) {
+      debugPrint('Biometric not enabled for user: $userId');
+      return const BiometricOutcome.failed(BiometricFailure.notEnabled);
+    }
+
+    if (!await isBiometricAvailable()) {
+      final enrolled = await getAvailableBiometrics();
+      debugPrint('Biometric not available. Enrolled types: $enrolled');
+      return BiometricOutcome.failed(
+        enrolled.isEmpty
+            ? BiometricFailure.notEnrolled
+            : BiometricFailure.notAvailable,
+      );
+    }
+
     try {
-      // Check if biometric is enabled for this user
-      if (!await isBiometricEnabled(userId)) {
-        debugPrint('Biometric not enabled for user: $userId');
-        return false;
-      }
-
-      // Check if biometric is available
-      if (!await isBiometricAvailable()) {
-        debugPrint('Biometric not available');
-        return false;
-      }
-
-      // Perform authentication
       final authenticated = await _auth.authenticate(
         localizedReason: localizedReason,
         options: const AuthenticationOptions(
@@ -74,18 +150,44 @@ class BiometricService {
         ),
       );
 
-      if (authenticated) {
-        // Record successful authentication
-        await _recordBiometricUse(userId);
-        debugPrint('Biometric authentication successful for user: $userId');
-        return true;
-      } else {
-        debugPrint('Biometric authentication failed or cancelled');
-        return false;
+      if (!authenticated) {
+        return const BiometricOutcome.failed(BiometricFailure.cancelled);
       }
-    } catch (error) {
+
+      await _recordBiometricUse(userId);
+      debugPrint('Biometric authentication successful for user: $userId');
+      return const BiometricOutcome.success();
+    } on PlatformException catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint(
+            'Biometric PlatformException: ${error.code} ${error.message}');
+        debugPrintStack(stackTrace: stackTrace);
+      }
+      return BiometricOutcome.failed(failureForCode(error.code));
+    } catch (error, stackTrace) {
+      if (kDebugMode) debugPrintStack(stackTrace: stackTrace);
       debugPrint('Biometric authentication error: $error');
-      return false;
+      return const BiometricOutcome.failed(BiometricFailure.unknown);
+    }
+  }
+
+  @visibleForTesting
+  static BiometricFailure failureForCode(String? code) {
+    switch (code) {
+      case 'NotEnrolled':
+        return BiometricFailure.notEnrolled;
+      case 'PasscodeNotSet':
+        return BiometricFailure.passcodeNotSet;
+      case 'LockedOut':
+        return BiometricFailure.lockedOut;
+      case 'PermanentlyLockedOut':
+        return BiometricFailure.permanentlyLockedOut;
+      case 'NotAvailable':
+        return BiometricFailure.notAvailable;
+      case 'no_fragment_activity':
+        return BiometricFailure.unsupportedActivity;
+      default:
+        return BiometricFailure.unknown;
     }
   }
 

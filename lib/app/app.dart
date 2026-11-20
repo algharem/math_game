@@ -29,13 +29,49 @@ class MathHeroesApp extends ConsumerWidget {
       ],
       routerConfig: appRouter,
       builder: (context, child) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: child ?? const SizedBox.shrink(),
+        return _RestoreErrorNotice(
+          child: Directionality(
+            textDirection: TextDirection.rtl,
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
     );
   }
+}
+
+class _RestoreErrorNotice extends ConsumerStatefulWidget {
+  const _RestoreErrorNotice({required this.child});
+
+  final Widget child;
+
+  @override
+  ConsumerState<_RestoreErrorNotice> createState() =>
+      _RestoreErrorNoticeState();
+}
+
+class _RestoreErrorNoticeState extends ConsumerState<_RestoreErrorNotice> {
+  bool _shown = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_shown) return;
+    _shown = true;
+    final error = ref.read(pendingRestoreErrorProvider);
+    if (error == null || error.trim().isEmpty) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      showAppSnack(
+        context,
+        'تعذرت استعادة النسخة الاحتياطية: $error',
+        isError: true,
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 class MissingRouteDataScreen extends StatelessWidget {

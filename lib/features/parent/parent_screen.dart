@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -83,7 +86,6 @@ class _ParentScreenState extends ConsumerState<ParentScreen> {
     await ref.read(authProvider.notifier).logout();
     if (mounted) context.go('/login');
   }
-
 
   Future<void> _openBackupRestore() async {
     await showModalBottomSheet<void>(
@@ -1353,7 +1355,6 @@ class _ReportsTabState extends ConsumerState<_ReportsTab> {
     );
   }
 
-
   Future<void> _export({
     required bool json,
     required Profile profile,
@@ -1851,9 +1852,10 @@ class _StudentFormSheetState extends ConsumerState<_StudentFormSheet> {
                       Expanded(
                         child: Text(
                           'سيتم تعيين كلمة مرور تلقائية: الطالب ١ = 111111، الطالب ٢ = 222222، وهكذا.',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.mutedForeground,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppColors.mutedForeground,
+                                  ),
                         ),
                       ),
                     ],
@@ -2115,7 +2117,10 @@ class _BackupRestoreSheetState extends ConsumerState<_BackupRestoreSheet> {
             ),
             const SizedBox(height: 8),
             Text(
-              'النسخة الاحتياطية تحفظ قاعدة البيانات المحلية (الطلاب، النتائج، المستويات). استخدمها قبل تحديث التطبيق. استعادة نسخة تستبدل البيانات الحالية بعد إعادة تشغيل التطبيق.',
+              'النسخة الاحتياطية تحفظ قاعدة البيانات المحلية (الطلاب، النتائج، المستويات). '
+              'النسخ داخل التطبيق تُحذف عند إلغاء تثبيته، لذا صدّر نسخة إلى الملفات أو جوجل درايف '
+              'قبل إلغاء التثبيت، ثم استعدها من ملف بعد التثبيت من جديد. '
+              'استعادة نسخة تستبدل البيانات الحالية بعد إعادة تشغيل التطبيق.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.mutedForeground,
                   ),
@@ -2138,6 +2143,12 @@ class _BackupRestoreSheetState extends ConsumerState<_BackupRestoreSheet> {
                           ),
                         )
                       : const Text('إنشاء نسخة احتياطية'),
+                ),
+                PressButton(
+                  onPressed: _busy ? null : _importBackup,
+                  color: AppColors.skyDeep,
+                  minHeight: 44,
+                  child: const Text('استعادة من ملف'),
                 ),
                 PressButton(
                   onPressed: _busy ? null : _load,
@@ -2170,9 +2181,15 @@ class _BackupRestoreSheetState extends ConsumerState<_BackupRestoreSheet> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          backup.fileName,
-                          style: Theme.of(context).textTheme.titleSmall,
+                        Tooltip(
+                          message: backup.fileName,
+                          child: Text(
+                            backup.fileName,
+                            maxLines: 2,
+                            softWrap: true,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -2191,6 +2208,14 @@ class _BackupRestoreSheetState extends ConsumerState<_BackupRestoreSheet> {
                               onPressed:
                                   _busy ? null : () => _copyPath(backup.path),
                               child: const Text('نسخ المسار'),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: _busy ? null : () => _export(backup),
+                              icon: const Icon(
+                                Icons.ios_share_rounded,
+                                size: 18,
+                              ),
+                              label: const Text('تصدير'),
                             ),
                             FilledButton(
                               onPressed: _busy ? null : () => _restore(backup),
@@ -2240,6 +2265,64 @@ class _BackupRestoreSheetState extends ConsumerState<_BackupRestoreSheet> {
     }
   }
 
+  Future<void> _export(BackupInfo backup) async {
+    setState(() => _busy = true);
+    try {
+      final bytes = await File(backup.path).readAsBytes();
+      final saved = await FilePicker.saveFile(
+        dialogTitle: 'حفظ النسخة الاحتياطية خارج التطبيق',
+        fileName: backup.fileName,
+        type: FileType.any,
+        bytes: bytes,
+      );
+      if (saved == null) return; // user cancelled the picker
+      if (!mounted) return;
+      showAppSnack(
+        context,
+        'تم حفظ النسخة خارج التطبيق. يمكنك استعادتها من ملف بعد إعادة التثبيت.',
+      );
+    } catch (_) {
+      if (mounted) {
+        showAppSnack(
+          context,
+          'تعذر تصدير النسخة الاحتياطية.',
+          isError: true,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _importBackup() async {
+    setState(() => _busy = true);
+    try {
+      final result = await FilePicker.pickFiles(
+        dialogTitle: 'اختر ملف النسخة الاحتياطية',
+        type: FileType.any,
+      );
+      final path = result?.files.single.path;
+      if (path == null || path.isEmpty) return;
+      final imported = await DataBackupService.importBackupFile(path);
+      if (!mounted) return;
+      await _load();
+      if (!mounted) return;
+      await _restore(imported);
+    } catch (error) {
+      if (mounted) {
+        showAppSnack(
+          context,
+          error is StateError
+              ? error.message
+              : 'تعذر استيراد النسخة الاحتياطية.',
+          isError: true,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _restore(BackupInfo backup) async {
     final confirmed = await showConfirmDialog(
       context,
@@ -2272,7 +2355,11 @@ class _BackupRestoreSheetState extends ConsumerState<_BackupRestoreSheet> {
       );
     } catch (error) {
       if (mounted) {
-        showAppSnack(context, 'تعذر تجهيز الاستعادة.', isError: true);
+        showAppSnack(
+          context,
+          error is StateError ? error.message : 'تعذر تجهيز الاستعادة.',
+          isError: true,
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -2299,7 +2386,12 @@ class _BackupRestoreSheetState extends ConsumerState<_BackupRestoreSheet> {
 
   Future<void> _copyPath(String path) async {
     await Clipboard.setData(ClipboardData(text: path));
-    if (mounted) showAppSnack(context, 'تم نسخ المسار.');
+    if (!mounted) return;
+    final isUri = path.startsWith('content://');
+    showAppSnack(
+      context,
+      isUri ? 'تم نسخ مرجع الملف.' : 'تم نسخ المسار.',
+    );
   }
 
   String _formatBytes(int bytes) {

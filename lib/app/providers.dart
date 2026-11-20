@@ -155,3 +155,7 @@ final unlockedCosmeticsProvider =
   if (profile == null) return const [];
   return ref.watch(databaseProvider).getUnlockedCosmetics(profile.id);
 });
+
+/// Populated at startup when a scheduled restore failed on the previous launch.
+/// Surfaced once so the user is not left wondering why the restore did not apply.
+final pendingRestoreErrorProvider = Provider<String?>((ref) => null);

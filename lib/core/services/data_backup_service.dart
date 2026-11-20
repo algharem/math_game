@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqlite3/sqlite3.dart';
 
 import '../database/app_database.dart';
 
@@ -99,11 +100,68 @@ class DataBackupService {
     ];
   }
 
-  static Future<void> scheduleRestoreOnNextLaunch(String backupPath) async {
+  /// Copies an external backup file into the app's backup folder.
+  ///
+  /// Used by "استعادة من ملف": the app's own folder is wiped when the app is
+  /// uninstalled, so users keep a copy in Downloads/Drive and import it back.
+  static Future<BackupInfo> importBackupFile(String sourcePath) async {
+    final source = File(sourcePath);
+    if (!await source.exists()) {
+      throw StateError('ملف النسخة الاحتياطية غير موجود.');
+    }
+    final backups = await backupsDirectory();
+    final stamp = _stamp();
+    final target =
+        File(p.join(backups.path, 'math_heroes_backup_$stamp.sqlite'));
+    await source.copy(target.path);
+    await _copySidecarIfExists('$sourcePath-wal', '${target.path}-wal');
+    await _copySidecarIfExists('$sourcePath-shm', '${target.path}-shm');
+    final stat = await target.stat();
+    return BackupInfo(
+      path: target.path,
+      createdAt: DateTime.now(),
+      sizeBytes: stat.size,
+    );
+  }
+
+  /// Opens the backup read-only and checks that it is a healthy SQLite file
+  /// that actually contains the app's tables. Throws [StateError] otherwise.
+  static Future<void> verifyBackup(String backupPath) async {
     final backup = File(backupPath);
     if (!await backup.exists()) {
       throw StateError('ملف النسخة الاحتياطية غير موجود.');
     }
+    Database? db;
+    try {
+      db = sqlite3.open(backupPath, mode: OpenMode.readOnly);
+      final integrity = db.select('PRAGMA integrity_check');
+      final value =
+          integrity.isEmpty ? '' : '${integrity.first.values.first}'.trim();
+      if (value.toLowerCase() != 'ok') {
+        throw StateError('النسخة الاحتياطية تالفة ($value).');
+      }
+      final tables = db
+          .select("SELECT name FROM sqlite_master WHERE type = 'table'")
+          .map((row) => '${row['name']}')
+          .toSet();
+      for (final required in const ['profiles', 'users', 'exam_records']) {
+        if (!tables.contains(required)) {
+          throw StateError(
+            'الملف المختار ليس نسخة احتياطية صالحة من التطبيق (جدول $required مفقود).',
+          );
+        }
+      }
+    } on StateError {
+      rethrow;
+    } catch (error) {
+      throw StateError('تعذر قراءة النسخة الاحتياطية: $error');
+    } finally {
+      db?.dispose();
+    }
+  }
+
+  static Future<void> scheduleRestoreOnNextLaunch(String backupPath) async {
+    await verifyBackup(backupPath);
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_restoreErrorKey);
     await prefs.setString(_pendingRestoreKey, backupPath);
@@ -135,10 +193,21 @@ class DataBackupService {
     if (!await backup.exists()) {
       throw StateError('ملف النسخة الاحتياطية غير موجود: $backupPath');
     }
+    await verifyBackup(backupPath);
     final dbPath = await databasePath();
     final dbDir = Directory(p.dirname(dbPath));
     if (!await dbDir.exists()) {
       await dbDir.create(recursive: true);
+    }
+    // Keep the data we are about to replace so a bad restore stays reversible.
+    final current = File(dbPath);
+    if (await current.exists()) {
+      final backups = await backupsDirectory();
+      final safety = File(
+        p.join(backups.path,
+            'math_heroes_backup_${_stamp()}_before_restore.sqlite'),
+      );
+      await current.copy(safety.path);
     }
     await _deleteIfExists('$dbPath-wal');
     await _deleteIfExists('$dbPath-shm');

@@ -115,41 +115,40 @@ class _BiometricSettingsScreenState
                             ref
                                 .read(audioServiceProvider)
                                 .play(SoundEffect.tap);
-                            await biometricService.setBiometricEnabled(
-                              widget.userId,
-                              value,
-                            );
                             final currentContext = context;
                             if (value) {
-                              // Test biometric authentication when enabling
-                              final authenticated =
-                                  await biometricService.authenticate(
+                              // Ask for a proof first; only store the flag once
+                              // the platform accepted the biometric prompt.
+                              final outcome = await biometricService
+                                  .authenticateWithDetails(
                                 userId: widget.userId,
+                                requireEnabled: false,
                                 localizedReason:
                                     'تفعيل $biometricName - يرجى المصادقة',
                               );
-                              if (!authenticated) {
-                                // If authentication fails, disable biometric
+                              if (outcome.succeeded) {
                                 await biometricService.setBiometricEnabled(
                                   widget.userId,
-                                  false,
+                                  true,
                                 );
-                                if (mounted && currentContext.mounted) {
-                                  showAppSnack(
-                                    currentContext,
-                                    'تعذر تفعيل $biometricName. حاول مرة أخرى.',
-                                    isError: true,
-                                  );
-                                }
-                              } else {
                                 if (mounted && currentContext.mounted) {
                                   showAppSnack(
                                     currentContext,
                                     'تم تفعيل $biometricName بنجاح!',
                                   );
                                 }
+                              } else if (mounted && currentContext.mounted) {
+                                showAppSnack(
+                                  currentContext,
+                                  outcome.arabicMessage,
+                                  isError: true,
+                                );
                               }
                             } else {
+                              await biometricService.setBiometricEnabled(
+                                widget.userId,
+                                false,
+                              );
                               if (mounted && currentContext.mounted) {
                                 showAppSnack(
                                   currentContext,
@@ -218,9 +217,7 @@ class _BiometricSettingsScreenState
                       const SizedBox(height: 12),
                       PressButton(
                         onPressed: () async {
-                          ref
-                              .read(audioServiceProvider)
-                              .play(SoundEffect.tap);
+                          ref.read(audioServiceProvider).play(SoundEffect.tap);
                           final confirmed = await showDialog<bool>(
                             context: context,
                             builder: (context) => AlertDialog(
