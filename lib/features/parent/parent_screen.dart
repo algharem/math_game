@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -2082,6 +2080,8 @@ class _BackupRestoreSheet extends ConsumerStatefulWidget {
 class _BackupRestoreSheetState extends ConsumerState<_BackupRestoreSheet> {
   bool _busy = false;
   List<BackupInfo> _backups = const [];
+  List<BackupInfo> _legacyPrivateBackups = const [];
+  SafDirectory? _safDirectory;
   bool _loaded = false;
 
   @override
@@ -2091,19 +2091,26 @@ class _BackupRestoreSheetState extends ConsumerState<_BackupRestoreSheet> {
   }
 
   Future<void> _load() async {
+    final saf = await DataBackupService.getSafDirectory();
     final backups = await DataBackupService.listBackups();
+    final legacy = saf != null
+        ? await DataBackupService.listPrivateBackups()
+        : const <BackupInfo>[];
     if (!mounted) return;
     setState(() {
+      _safDirectory = saf;
       _backups = backups;
+      _legacyPrivateBackups = legacy;
       _loaded = true;
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final usingSaf = _safDirectory != null;
     return DraggableScrollableSheet(
       expand: false,
-      initialChildSize: 0.78,
+      initialChildSize: 0.82,
       minChildSize: 0.45,
       builder: (context, controller) => Directionality(
         textDirection: TextDirection.rtl,
@@ -2117,13 +2124,56 @@ class _BackupRestoreSheetState extends ConsumerState<_BackupRestoreSheet> {
             ),
             const SizedBox(height: 8),
             Text(
-              'النسخة الاحتياطية تحفظ قاعدة البيانات المحلية (الطلاب، النتائج، المستويات). '
-              'النسخ داخل التطبيق تُحذف عند إلغاء تثبيته، لذا صدّر نسخة إلى الملفات أو جوجل درايف '
-              'قبل إلغاء التثبيت، ثم استعدها من ملف بعد التثبيت من جديد. '
-              'استعادة نسخة تستبدل البيانات الحالية بعد إعادة تشغيل التطبيق.',
+              usingSaf
+                  ? 'يتم حفظ النسخ في المجلد الذي اخترته (خارج التطبيق) حتى تبقى بعد إلغاء التثبيت. '
+                      'استعادة نسخة تستبدل البيانات الحالية بعد إعادة تشغيل التطبيق.'
+                  : 'اختر مجلداً لحفظ النسخ خارج التطبيق حتى لا تُفقد عند إلغاء التثبيت. '
+                      'النسخ داخل التطبيق تُحذف عند إلغاء تثبيته. '
+                      'استعادة نسخة تستبدل البيانات الحالية بعد إعادة تشغيل التطبيق.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.mutedForeground,
                   ),
+            ),
+            const SizedBox(height: 12),
+            AppCard(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'مجلد النسخ الاحتياطي',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    usingSaf
+                        ? (_safDirectory!.name ?? _safDirectory!.uri)
+                        : 'غير محدد (يُحفظ حالياً داخل التطبيق فقط)',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: usingSaf
+                              ? AppColors.leafDeep
+                              : AppColors.mutedForeground,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      PressButton(
+                        onPressed: _busy ? null : _pickSafFolder,
+                        minHeight: 40,
+                        child: Text(usingSaf ? 'تغيير المجلد' : 'اختيار مجلد'),
+                      ),
+                      if (usingSaf)
+                        OutlinedButton(
+                          onPressed: _busy ? null : _clearSafFolder,
+                          child: const Text('استخدام التخزين الداخلي'),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 14),
             Wrap(
@@ -2148,7 +2198,7 @@ class _BackupRestoreSheetState extends ConsumerState<_BackupRestoreSheet> {
                   onPressed: _busy ? null : _importBackup,
                   color: AppColors.skyDeep,
                   minHeight: 44,
-                  child: const Text('استعادة من ملف'),
+                  child: const Text('استيراد واستعادة ملف'),
                 ),
                 PressButton(
                   onPressed: _busy ? null : _load,
@@ -2168,76 +2218,146 @@ class _BackupRestoreSheetState extends ConsumerState<_BackupRestoreSheet> {
             else if (_backups.isEmpty)
               AppCard(
                 child: Text(
-                  'لا توجد نسخ احتياطية بعد. أنشئ نسخة قبل تحديث التطبيق للحفاظ على بيانات الطلاب.',
+                  usingSaf
+                      ? 'لا توجد نسخ في المجلد المختار بعد. أنشئ نسخة لحفظ بيانات الطلاب خارج التطبيق.'
+                      : 'لا توجد نسخ احتياطية بعد. اختر مجلداً وأنشئ نسخة للحفاظ على بيانات الطلاب.',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               )
-            else
-              for (final backup in _backups)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: AppCard(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Tooltip(
-                          message: backup.fileName,
-                          child: Text(
-                            backup.fileName,
-                            maxLines: 2,
-                            softWrap: true,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.titleSmall,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${ArabicNumbers.formatDateTime(backup.createdAt)} • ${_formatBytes(backup.sizeBytes)}',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppColors.mutedForeground,
-                                  ),
-                        ),
-                        const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            OutlinedButton(
-                              onPressed:
-                                  _busy ? null : () => _copyPath(backup.path),
-                              child: const Text('نسخ المسار'),
-                            ),
-                            OutlinedButton.icon(
-                              onPressed: _busy ? null : () => _export(backup),
-                              icon: const Icon(
-                                Icons.ios_share_rounded,
-                                size: 18,
-                              ),
-                              label: const Text('تصدير'),
-                            ),
-                            FilledButton(
-                              onPressed: _busy ? null : () => _restore(backup),
-                              child: const Text('استعادة'),
-                            ),
-                            TextButton(
-                              onPressed: _busy ? null : () => _delete(backup),
-                              style: TextButton.styleFrom(
-                                foregroundColor: AppColors.coralDeep,
-                              ),
-                              child: const Text('حذف'),
-                            ),
-                          ],
-                        ),
-                      ],
+            else ...[
+              Text(
+                usingSaf ? 'النسخ في المجلد المختار' : 'النسخ داخل التطبيق',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              for (final backup in _backups) _backupCard(backup),
+            ],
+            if (usingSaf && _legacyPrivateBackups.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                'نسخ قديمة داخل التطبيق (تُفقد عند إلغاء التثبيت)',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: AppColors.coralDeep,
                     ),
-                  ),
-                ),
+              ),
+              const SizedBox(height: 6),
+              OutlinedButton.icon(
+                onPressed: _busy ? null : _migratePrivateToSaf,
+                icon: const Icon(Icons.drive_file_move_rounded, size: 18),
+                label: const Text('نسخ القديمة إلى المجلد المختار'),
+              ),
+              const SizedBox(height: 8),
+              for (final backup in _legacyPrivateBackups)
+                _backupCard(backup, legacy: true),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  Widget _backupCard(BackupInfo backup, {bool legacy = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: AppCard(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Tooltip(
+              message: backup.fileName,
+              child: Text(
+                backup.fileName,
+                maxLines: 2,
+                softWrap: true,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${ArabicNumbers.formatDateTime(backup.createdAt)} • ${_formatBytes(backup.sizeBytes)}'
+              '${backup.isSaf ? ' • محفوظ خارج التطبيق' : (legacy ? ' • داخل التطبيق' : '')}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.mutedForeground,
+                  ),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton(
+                  onPressed: _busy ? null : () => _copyRef(backup),
+                  child:
+                      Text(backup.isContentUri ? 'نسخ المرجع' : 'نسخ المسار'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _busy ? null : () => _export(backup),
+                  icon: const Icon(Icons.save_alt_rounded, size: 18),
+                  label: const Text('حفظ نسخة'),
+                ),
+                FilledButton(
+                  onPressed: _busy ? null : () => _restore(backup),
+                  child: const Text('استعادة'),
+                ),
+                TextButton(
+                  onPressed: _busy ? null : () => _delete(backup),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.coralDeep,
+                  ),
+                  child: const Text('حذف'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickSafFolder() async {
+    setState(() => _busy = true);
+    try {
+      final dir = await DataBackupService.pickSafDirectory();
+      if (dir == null) return; // cancelled or unavailable
+      if (!mounted) return;
+      await _load();
+      if (!mounted) return;
+      showAppSnack(context, 'تم اختيار مجلد النسخ الاحتياطي.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _clearSafFolder() async {
+    setState(() => _busy = true);
+    try {
+      await DataBackupService.clearSafDirectory();
+      await _load();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _migratePrivateToSaf() async {
+    setState(() => _busy = true);
+    try {
+      final count = await DataBackupService.migratePrivateBackupsToSaf();
+      await _load();
+      if (!mounted) return;
+      showAppSnack(context, 'تم نسخ $count نسخة إلى المجلد المختار.');
+    } catch (error) {
+      if (mounted) {
+        showAppSnack(
+          context,
+          error is StateError ? error.message : 'تعذر نقل النسخ القديمة.',
+          isError: true,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _createBackup() async {
@@ -2251,7 +2371,10 @@ class _BackupRestoreSheetState extends ConsumerState<_BackupRestoreSheet> {
       if (!mounted) return;
       await Clipboard.setData(ClipboardData(text: backup.path));
       if (!mounted) return;
-      showAppSnack(context, 'تم إنشاء النسخة الاحتياطية ونسخ مسارها.');
+      final msg = backup.isSaf
+          ? 'تم إنشاء النسخة في المجلد المختار (خارج التطبيق).'
+          : 'تم إنشاء النسخة داخل التطبيق ونسخ مسارها. اختر مجلداً لحفظها خارج التطبيق.';
+      showAppSnack(context, msg);
     } catch (error) {
       if (mounted) {
         showAppSnack(
@@ -2268,9 +2391,9 @@ class _BackupRestoreSheetState extends ConsumerState<_BackupRestoreSheet> {
   Future<void> _export(BackupInfo backup) async {
     setState(() => _busy = true);
     try {
-      final bytes = await File(backup.path).readAsBytes();
+      final bytes = await DataBackupService.readBackupBytes(backup);
       final saved = await FilePicker.saveFile(
-        dialogTitle: 'حفظ النسخة الاحتياطية خارج التطبيق',
+        dialogTitle: 'حفظ نسخة من ملف النسخ الاحتياطي',
         fileName: backup.fileName,
         type: FileType.any,
         bytes: bytes,
@@ -2279,13 +2402,13 @@ class _BackupRestoreSheetState extends ConsumerState<_BackupRestoreSheet> {
       if (!mounted) return;
       showAppSnack(
         context,
-        'تم حفظ النسخة خارج التطبيق. يمكنك استعادتها من ملف بعد إعادة التثبيت.',
+        'تم حفظ النسخة. يمكنك استعادتها من ملف بعد إعادة التثبيت.',
       );
     } catch (_) {
       if (mounted) {
         showAppSnack(
           context,
-          'تعذر تصدير النسخة الاحتياطية.',
+          'تعذر حفظ النسخة الاحتياطية.',
           isError: true,
         );
       }
@@ -2328,7 +2451,8 @@ class _BackupRestoreSheetState extends ConsumerState<_BackupRestoreSheet> {
       context,
       title: 'استعادة النسخة الاحتياطية؟',
       message:
-          'سيتم استبدال بيانات التطبيق الحالية بهذه النسخة عند إعادة تشغيل التطبيق. تأكد من صحة النسخة. لا يمكن التراجع بعد إعادة التشغيل.',
+          'سيتم استبدال بيانات التطبيق الحالية بهذه النسخة عند إعادة تشغيل التطبيق. '
+          'سيتم حفظ نسخة أمان من البيانات الحالية تلقائياً. لا يمكن التراجع بعد إعادة التشغيل.',
       confirmLabel: 'تجهيز الاستعادة',
       destructive: true,
     );
@@ -2377,20 +2501,19 @@ class _BackupRestoreSheetState extends ConsumerState<_BackupRestoreSheet> {
     if (!confirmed || !mounted) return;
     setState(() => _busy = true);
     try {
-      await DataBackupService.deleteBackup(backup.path);
+      await DataBackupService.deleteBackupInfo(backup);
       await _load();
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
-  Future<void> _copyPath(String path) async {
-    await Clipboard.setData(ClipboardData(text: path));
+  Future<void> _copyRef(BackupInfo backup) async {
+    await Clipboard.setData(ClipboardData(text: backup.path));
     if (!mounted) return;
-    final isUri = path.startsWith('content://');
     showAppSnack(
       context,
-      isUri ? 'تم نسخ مرجع الملف.' : 'تم نسخ المسار.',
+      backup.isContentUri ? 'تم نسخ مرجع الملف.' : 'تم نسخ المسار.',
     );
   }
 
