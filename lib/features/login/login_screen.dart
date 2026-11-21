@@ -56,7 +56,15 @@ class LoginScreen extends ConsumerWidget {
                     ),
                 ],
               ),
-              const SizedBox(height: 12),
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: TextButton.icon(
+                  onPressed: () => _loginWithUsername(context, ref),
+                  icon: const Icon(Icons.key_rounded, size: 18),
+                  label: const Text('الدخول باسم المستخدم'),
+                ),
+              ),
+              const SizedBox(height: 4),
               if (students.isEmpty)
                 AppCard(
                   child: Column(
@@ -120,6 +128,19 @@ class LoginScreen extends ConsumerWidget {
         },
       ),
     );
+  }
+
+  Future<void> _loginWithUsername(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final session = await showDialog<AuthSession>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const _UsernameLoginDialog(),
+    );
+    if (session == null || !context.mounted) return;
+    await _completeLogin(context, ref, session);
   }
 
   Future<void> _login(
@@ -308,6 +329,25 @@ class _StudentLoginCard extends StatelessWidget {
                     color: AppColors.mutedForeground,
                   ),
             ),
+            if (account.isDevelopment)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.coralSoft,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    'حساب تجريبي',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.coralDeep,
+                          fontSize: 10,
+                        ),
+                  ),
+                ),
+              ),
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -774,6 +814,148 @@ class _BiometricChoiceDialog extends ConsumerWidget {
           const Icon(Icons.chevron_left_rounded),
         ],
       ),
+    );
+  }
+}
+
+/// Username + password login used by the shared testing students
+/// (`student1`…`student9`). Normal accounts can keep using the cards.
+class _UsernameLoginDialog extends ConsumerStatefulWidget {
+  const _UsernameLoginDialog();
+
+  @override
+  ConsumerState<_UsernameLoginDialog> createState() =>
+      _UsernameLoginDialogState();
+}
+
+class _UsernameLoginDialogState extends ConsumerState<_UsernameLoginDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _obscure = true;
+  bool _loading = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_loading || !_formKey.currentState!.validate()) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    final result = await ref.read(authProvider.notifier).loginWithUsername(
+          username: _usernameController.text.trim(),
+          password: _passwordController.text,
+        );
+    if (!mounted) return;
+    if (result.session != null) {
+      Navigator.of(context).pop(result.session);
+      return;
+    }
+    setState(() {
+      _loading = false;
+      _error = result.failure?.message ?? 'تعذر تسجيل الدخول.';
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Row(
+        children: [
+          const Icon(Icons.badge_rounded, color: AppColors.leafDeep),
+          const SizedBox(width: 8),
+          const Expanded(child: Text('الدخول باسم المستخدم')),
+        ],
+      ),
+      content: Form(
+        key: _formKey,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextFormField(
+                controller: _usernameController,
+                textDirection: TextDirection.ltr,
+                textInputAction: TextInputAction.next,
+                autocorrect: false,
+                enableSuggestions: false,
+                decoration: const InputDecoration(
+                  labelText: 'اسم المستخدم',
+                  hintText: 'student1',
+                  prefixIcon: Icon(Icons.person_outline_rounded),
+                ),
+                validator: (value) {
+                  if ((value ?? '').trim().isEmpty) {
+                    return 'اسم المستخدم مطلوب.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _passwordController,
+                obscureText: _obscure,
+                textInputAction: TextInputAction.done,
+                onFieldSubmitted: (_) => _submit(),
+                decoration: InputDecoration(
+                  labelText: 'كلمة المرور',
+                  prefixIcon: const Icon(Icons.lock_outline_rounded),
+                  suffixIcon: IconButton(
+                    tooltip:
+                        _obscure ? 'إظهار كلمة المرور' : 'إخفاء كلمة المرور',
+                    onPressed: () => setState(() => _obscure = !_obscure),
+                    icon: Icon(
+                      _obscure
+                          ? Icons.visibility_rounded
+                          : Icons.visibility_off_rounded,
+                    ),
+                  ),
+                ),
+                validator: (value) {
+                  if ((value ?? '').isEmpty) {
+                    return 'كلمة المرور مطلوبة.';
+                  }
+                  return null;
+                },
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  _error!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.coralDeep,
+                      ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _loading ? null : () => Navigator.of(context).pop(),
+          child: const Text('إلغاء'),
+        ),
+        FilledButton(
+          onPressed: _loading ? null : _submit,
+          child: _loading
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('دخول'),
+        ),
+      ],
     );
   }
 }

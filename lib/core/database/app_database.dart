@@ -52,6 +52,11 @@ class Users extends Table {
   TextColumn get role => text()();
   IntColumn get avatarIndex => integer().withDefault(const Constant(0))();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+
+  /// `standard` for real accounts, `development` for the shared testing
+  /// students created by [DevAccountSeeder]. Additive field (schema v5).
+  TextColumn get accountType =>
+      text().withDefault(const Constant('standard'))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
@@ -265,7 +270,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -298,6 +303,11 @@ class AppDatabase extends _$AppDatabase {
               // (v1 schema); create it fresh with the column included.
               await m.createTable(answerRecords);
             }
+          }
+          if (from >= 2 && from < 5) {
+            // Development/testing account marker. Additive column with a
+            // safe default; existing accounts stay `standard`.
+            await m.addColumn(users, users.accountType);
           }
         },
         beforeOpen: (details) async {
@@ -525,6 +535,27 @@ class AppDatabase extends _$AppDatabase {
     return null;
   }
 
+  /// Finds a user by their login name, including inactive accounts.
+  /// Used by the development seeder so it never duplicates a disabled
+  /// account. Login itself uses [findActiveUserByUsername].
+  Future<User?> findUserByUsername(String username) async {
+    final normalized = username.trim().toLowerCase();
+    if (normalized.isEmpty) return null;
+    final rows = await select(users).get();
+    for (final user in rows) {
+      if (user.username?.trim().toLowerCase() == normalized) return user;
+    }
+    return null;
+  }
+
+  /// Finds an active account by username (case-insensitive). Returns null
+  /// for unknown or deactivated accounts so callers cannot leak which one.
+  Future<User?> findActiveUserByUsername(String username) async {
+    final user = await findUserByUsername(username);
+    if (user == null || !user.isActive) return null;
+    return user;
+  }
+
   Future<User?> getUserForProfile(String profileId) {
     return (select(users)
           ..where((table) => table.profileId.equals(profileId))
@@ -539,6 +570,7 @@ class AppDatabase extends _$AppDatabase {
     String? passwordHash,
     required String role,
     int avatarIndex = 0,
+    String accountType = 'standard',
   }) async {
     final now = DateTime.now();
     final user = User(
@@ -550,6 +582,7 @@ class AppDatabase extends _$AppDatabase {
       role: role,
       avatarIndex: avatarIndex,
       isActive: true,
+      accountType: accountType,
       createdAt: now,
       updatedAt: now,
     );

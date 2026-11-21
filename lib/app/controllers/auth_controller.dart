@@ -81,6 +81,21 @@ class AuthController extends Notifier<AuthSession?> {
     return result;
   }
 
+  Future<AuthResult> loginWithUsername({
+    required String username,
+    required String password,
+  }) async {
+    final result = await ref.read(accountServiceProvider).loginWithUsername(
+          username: username,
+          password: password,
+        );
+    if (result.session != null) {
+      state = result.session;
+      ref.invalidate(accountsProvider);
+    }
+    return result;
+  }
+
   Future<AuthResult> loginWithBiometric({
     required String userId,
   }) async {

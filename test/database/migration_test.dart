@@ -89,5 +89,13 @@ void main() {
       ),
       hasLength(1),
     );
+    // Schema v5 adds the account-type marker with a safe `standard` default.
+    expect(
+      users
+          .where((user) => user.profileId == 'legacy-profile')
+          .single
+          .accountType,
+      'standard',
+    );
   });
 }

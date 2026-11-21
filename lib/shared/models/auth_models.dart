@@ -38,6 +38,11 @@ class AccountSummary {
   bool get needsPassword =>
       user.passwordHash == null || user.passwordHash!.trim().isEmpty;
   int get avatarIndex => user.avatarIndex;
+
+  /// True for the shared `student1`…`student9` accounts created by
+  /// [DevAccountSeeder]. Never grants extra privileges.
+  bool get isDevelopment => user.accountType == 'development';
+
   int get schoolGrade => profile?.schoolGrade ?? 1;
   int get currentLevel => profile?.currentLevel ?? 1;
   int get completedLevels => profile?.totalCompletedLevels ?? 0;

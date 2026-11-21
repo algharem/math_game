@@ -2,6 +2,13 @@
 
 A new Flutter project.
 
+## Development / testing student accounts
+
+Nine shared students (`student1` … `student9`, grades 1–9, password
+`111111`) are seeded automatically in debug/profile builds. See
+[DEV_TEST_ACCOUNTS.md](DEV_TEST_ACCOUNTS.md) for the credentials, how to log
+in, and how to disable the seed in production builds.
+
 ## Getting Started
 
 This project is a starting point for a Flutter application.

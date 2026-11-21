@@ -50,6 +50,36 @@ class AccountService {
     return _sessionFor(user);
   }
 
+  /// Username-based login for the shared testing students. Unknown and
+  /// inactive usernames both report [AuthFailure.userNotFound] so the form
+  /// does not reveal which accounts exist.
+  Future<AuthResult> loginWithUsername({
+    required String username,
+    required String password,
+  }) async {
+    final user = await _database.findActiveUserByUsername(username);
+    if (user == null) {
+      return const AuthResult.failure(AuthFailure.userNotFound);
+    }
+    if (user.passwordHash == null || user.passwordHash!.isEmpty) {
+      return const AuthResult.setupRequired();
+    }
+    if (!PasswordHasher.verify(password, user.passwordHash!)) {
+      return const AuthResult.failure(AuthFailure.wrongPassword);
+    }
+    return _sessionFor(user);
+  }
+
+  /// Looks up an account by username without authenticating it.
+  Future<AccountSummary?> getAccountByUsername(String username) async {
+    final user = await _database.findUserByUsername(username);
+    if (user == null) return null;
+    final profile = user.profileId == null
+        ? null
+        : await _database.getProfile(user.profileId!);
+    return AccountSummary(user: user, profile: profile);
+  }
+
   Future<AuthResult> loginWithBiometric({
     required String userId,
   }) async {

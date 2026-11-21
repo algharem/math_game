@@ -682,6 +682,14 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("is_active" IN (0, 1))'),
       defaultValue: const Constant(true));
+  static const VerificationMeta _accountTypeMeta =
+      const VerificationMeta('accountType');
+  @override
+  late final GeneratedColumn<String> accountType = GeneratedColumn<String>(
+      'account_type', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('standard'));
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -704,6 +712,7 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
         role,
         avatarIndex,
         isActive,
+        accountType,
         createdAt,
         updatedAt
       ];
@@ -758,6 +767,12 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
       context.handle(_isActiveMeta,
           isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta));
     }
+    if (data.containsKey('account_type')) {
+      context.handle(
+          _accountTypeMeta,
+          accountType.isAcceptableOrUnknown(
+              data['account_type']!, _accountTypeMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -799,6 +814,8 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
           .read(DriftSqlType.int, data['${effectivePrefix}avatar_index'])!,
       isActive: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_active'])!,
+      accountType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}account_type'])!,
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -821,6 +838,10 @@ class User extends DataClass implements Insertable<User> {
   final String role;
   final int avatarIndex;
   final bool isActive;
+
+  /// `standard` for real accounts, `development` for the shared testing
+  /// students created by [DevAccountSeeder]. Additive field (schema v5).
+  final String accountType;
   final DateTime createdAt;
   final DateTime updatedAt;
   const User(
@@ -832,6 +853,7 @@ class User extends DataClass implements Insertable<User> {
       required this.role,
       required this.avatarIndex,
       required this.isActive,
+      required this.accountType,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -851,6 +873,7 @@ class User extends DataClass implements Insertable<User> {
     map['role'] = Variable<String>(role);
     map['avatar_index'] = Variable<int>(avatarIndex);
     map['is_active'] = Variable<bool>(isActive);
+    map['account_type'] = Variable<String>(accountType);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -872,6 +895,7 @@ class User extends DataClass implements Insertable<User> {
       role: Value(role),
       avatarIndex: Value(avatarIndex),
       isActive: Value(isActive),
+      accountType: Value(accountType),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -889,6 +913,7 @@ class User extends DataClass implements Insertable<User> {
       role: serializer.fromJson<String>(json['role']),
       avatarIndex: serializer.fromJson<int>(json['avatarIndex']),
       isActive: serializer.fromJson<bool>(json['isActive']),
+      accountType: serializer.fromJson<String>(json['accountType']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -905,6 +930,7 @@ class User extends DataClass implements Insertable<User> {
       'role': serializer.toJson<String>(role),
       'avatarIndex': serializer.toJson<int>(avatarIndex),
       'isActive': serializer.toJson<bool>(isActive),
+      'accountType': serializer.toJson<String>(accountType),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -919,6 +945,7 @@ class User extends DataClass implements Insertable<User> {
           String? role,
           int? avatarIndex,
           bool? isActive,
+          String? accountType,
           DateTime? createdAt,
           DateTime? updatedAt}) =>
       User(
@@ -931,6 +958,7 @@ class User extends DataClass implements Insertable<User> {
         role: role ?? this.role,
         avatarIndex: avatarIndex ?? this.avatarIndex,
         isActive: isActive ?? this.isActive,
+        accountType: accountType ?? this.accountType,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -947,6 +975,8 @@ class User extends DataClass implements Insertable<User> {
       avatarIndex:
           data.avatarIndex.present ? data.avatarIndex.value : this.avatarIndex,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      accountType:
+          data.accountType.present ? data.accountType.value : this.accountType,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -963,6 +993,7 @@ class User extends DataClass implements Insertable<User> {
           ..write('role: $role, ')
           ..write('avatarIndex: $avatarIndex, ')
           ..write('isActive: $isActive, ')
+          ..write('accountType: $accountType, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -970,8 +1001,18 @@ class User extends DataClass implements Insertable<User> {
   }
 
   @override
-  int get hashCode => Object.hash(id, profileId, fullName, username,
-      passwordHash, role, avatarIndex, isActive, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+      id,
+      profileId,
+      fullName,
+      username,
+      passwordHash,
+      role,
+      avatarIndex,
+      isActive,
+      accountType,
+      createdAt,
+      updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -984,6 +1025,7 @@ class User extends DataClass implements Insertable<User> {
           other.role == this.role &&
           other.avatarIndex == this.avatarIndex &&
           other.isActive == this.isActive &&
+          other.accountType == this.accountType &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -997,6 +1039,7 @@ class UsersCompanion extends UpdateCompanion<User> {
   final Value<String> role;
   final Value<int> avatarIndex;
   final Value<bool> isActive;
+  final Value<String> accountType;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -1009,6 +1052,7 @@ class UsersCompanion extends UpdateCompanion<User> {
     this.role = const Value.absent(),
     this.avatarIndex = const Value.absent(),
     this.isActive = const Value.absent(),
+    this.accountType = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1022,6 +1066,7 @@ class UsersCompanion extends UpdateCompanion<User> {
     required String role,
     this.avatarIndex = const Value.absent(),
     this.isActive = const Value.absent(),
+    this.accountType = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -1039,6 +1084,7 @@ class UsersCompanion extends UpdateCompanion<User> {
     Expression<String>? role,
     Expression<int>? avatarIndex,
     Expression<bool>? isActive,
+    Expression<String>? accountType,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -1052,6 +1098,7 @@ class UsersCompanion extends UpdateCompanion<User> {
       if (role != null) 'role': role,
       if (avatarIndex != null) 'avatar_index': avatarIndex,
       if (isActive != null) 'is_active': isActive,
+      if (accountType != null) 'account_type': accountType,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -1067,6 +1114,7 @@ class UsersCompanion extends UpdateCompanion<User> {
       Value<String>? role,
       Value<int>? avatarIndex,
       Value<bool>? isActive,
+      Value<String>? accountType,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
       Value<int>? rowid}) {
@@ -1079,6 +1127,7 @@ class UsersCompanion extends UpdateCompanion<User> {
       role: role ?? this.role,
       avatarIndex: avatarIndex ?? this.avatarIndex,
       isActive: isActive ?? this.isActive,
+      accountType: accountType ?? this.accountType,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -1112,6 +1161,9 @@ class UsersCompanion extends UpdateCompanion<User> {
     if (isActive.present) {
       map['is_active'] = Variable<bool>(isActive.value);
     }
+    if (accountType.present) {
+      map['account_type'] = Variable<String>(accountType.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -1135,6 +1187,7 @@ class UsersCompanion extends UpdateCompanion<User> {
           ..write('role: $role, ')
           ..write('avatarIndex: $avatarIndex, ')
           ..write('isActive: $isActive, ')
+          ..write('accountType: $accountType, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -7255,6 +7308,7 @@ typedef $$UsersTableCreateCompanionBuilder = UsersCompanion Function({
   required String role,
   Value<int> avatarIndex,
   Value<bool> isActive,
+  Value<String> accountType,
   required DateTime createdAt,
   required DateTime updatedAt,
   Value<int> rowid,
@@ -7268,6 +7322,7 @@ typedef $$UsersTableUpdateCompanionBuilder = UsersCompanion Function({
   Value<String> role,
   Value<int> avatarIndex,
   Value<bool> isActive,
+  Value<String> accountType,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
   Value<int> rowid,
@@ -7320,6 +7375,9 @@ class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
 
   ColumnFilters<bool> get isActive => $composableBuilder(
       column: $table.isActive, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get accountType => $composableBuilder(
+      column: $table.accountType, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -7379,6 +7437,9 @@ class $$UsersTableOrderingComposer
   ColumnOrderings<bool> get isActive => $composableBuilder(
       column: $table.isActive, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get accountType => $composableBuilder(
+      column: $table.accountType, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -7435,6 +7496,9 @@ class $$UsersTableAnnotationComposer
 
   GeneratedColumn<bool> get isActive =>
       $composableBuilder(column: $table.isActive, builder: (column) => column);
+
+  GeneratedColumn<String> get accountType => $composableBuilder(
+      column: $table.accountType, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -7494,6 +7558,7 @@ class $$UsersTableTableManager extends RootTableManager<
             Value<String> role = const Value.absent(),
             Value<int> avatarIndex = const Value.absent(),
             Value<bool> isActive = const Value.absent(),
+            Value<String> accountType = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -7507,6 +7572,7 @@ class $$UsersTableTableManager extends RootTableManager<
             role: role,
             avatarIndex: avatarIndex,
             isActive: isActive,
+            accountType: accountType,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -7520,6 +7586,7 @@ class $$UsersTableTableManager extends RootTableManager<
             required String role,
             Value<int> avatarIndex = const Value.absent(),
             Value<bool> isActive = const Value.absent(),
+            Value<String> accountType = const Value.absent(),
             required DateTime createdAt,
             required DateTime updatedAt,
             Value<int> rowid = const Value.absent(),
@@ -7533,6 +7600,7 @@ class $$UsersTableTableManager extends RootTableManager<
             role: role,
             avatarIndex: avatarIndex,
             isActive: isActive,
+            accountType: accountType,
             createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
