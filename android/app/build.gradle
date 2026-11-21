@@ -62,6 +62,9 @@ android {
             // with a different key cannot replace the installed app and users may
             // uninstall/reinstall, which deletes local student data.
             signingConfig hasReleaseKeystore ? signingConfigs.release : signingConfigs.debug
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 }
