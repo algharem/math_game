@@ -29,6 +29,21 @@ class QuestionPrompt extends StatelessWidget {
     this.plainTextAlign = TextAlign.start,
   });
 
+  /// Adaptive sizing for exam prompts: long Arabic word problems shrink so the
+  /// question and answer choices remain visible. Kept here so quiz/results/retry
+  /// share one source of truth.
+  static double adaptivePromptFontSize(Question question) {
+    final length = question.displayPrompt.trim().length;
+    if (length <= 16) return 40;
+    if (length <= 28) return 32;
+    if (length <= 48) return 27;
+    if (length <= 80) return 23;
+    return 20;
+  }
+
+  static double adaptiveStoryFontSize(Question question) =>
+      question.displayPrompt.trim().length <= 80 ? 21 : 19;
+
   final Question question;
   final double fontSize;
 

@@ -56,19 +56,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   QuizLaunchData get _launch => widget.launchData;
   Question get _question => _questions[_index];
 
-  /// Long prompts (especially word problems) need a smaller font so the whole
-  /// question and its choices stay readable without endless scrolling.
-  double get _promptFontSize {
-    final length = _question.displayPrompt.trim().length;
-    if (length <= 16) return 40;
-    if (length <= 28) return 32;
-    if (length <= 48) return 27;
-    if (length <= 80) return 23;
-    return 20;
-  }
+  double get _promptFontSize =>
+      QuestionPrompt.adaptivePromptFontSize(_question);
 
-  double get _storyFontSize =>
-      _question.displayPrompt.trim().length <= 80 ? 21 : 19;
+  double get _storyFontSize => QuestionPrompt.adaptiveStoryFontSize(_question);
 
   @override
   void initState() {
@@ -389,21 +380,28 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                 borderColor: AppColors.skySoft,
                 child: Column(
                   children: [
-                    QuestionPrompt(
-                      question: _question,
-                      fontSize: _promptFontSize,
-                      storyFontSize: _storyFontSize,
-                      orderFontSize: 30,
-                      textColor: AppColors.skyDeep,
-                      highlightColor: AppColors.skySoft,
-                      alignment: Alignment.center,
-                      plainTextAlign: TextAlign.center,
-                      plainTextStyle:
-                          Theme.of(context).textTheme.displayMedium?.copyWith(
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 260),
+                      child: SingleChildScrollView(
+                        child: QuestionPrompt(
+                          question: _question,
+                          fontSize: _promptFontSize,
+                          storyFontSize: _storyFontSize,
+                          orderFontSize: 30,
+                          textColor: AppColors.skyDeep,
+                          highlightColor: AppColors.skySoft,
+                          alignment: Alignment.center,
+                          plainTextAlign: TextAlign.center,
+                          plainTextStyle: Theme.of(context)
+                              .textTheme
+                              .displayMedium
+                              ?.copyWith(
                                 color: AppColors.skyDeep,
                                 fontSize: _promptFontSize,
                                 height: 1.35,
                               ),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
