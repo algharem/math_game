@@ -282,7 +282,11 @@ class DataBackupService {
       return File(backup.path).readAsBytes();
     }
     final local = await resolveToLocalPath(backup);
-    return File(local).readAsBytes();
+    try {
+      return await File(local).readAsBytes();
+    } finally {
+      await _deleteIfExists(local);
+    }
   }
 
   /// Opens the backup and checks that it is a healthy SQLite file that actually
@@ -323,7 +327,13 @@ class DataBackupService {
 
   static Future<void> verifyBackupInfo(BackupInfo backup) async {
     final local = await resolveToLocalPath(backup);
-    await verifyBackup(local);
+    try {
+      await verifyBackup(local);
+    } finally {
+      if (backup.isContentUri) {
+        await _deleteIfExists(local);
+      }
+    }
   }
 
   static Future<void> scheduleRestoreOnNextLaunch(String backupPath) async {
@@ -336,7 +346,11 @@ class DataBackupService {
       if (local == null || local.isEmpty) {
         throw StateError('تعذر قراءة النسخة الاحتياطية من المجلد المختار.');
       }
-      await verifyBackup(local);
+      try {
+        await verifyBackup(local);
+      } finally {
+        await _deleteIfExists(local);
+      }
     } else {
       await verifyBackup(backupPath);
     }
@@ -368,6 +382,7 @@ class DataBackupService {
 
   static Future<void> _restoreNow(String backupPath) async {
     String localPath = backupPath;
+    String? tempCachePath;
     if (backupPath.startsWith('content://')) {
       final cacheName =
           'restore_${DateTime.now().microsecondsSinceEpoch}.sqlite';
@@ -377,32 +392,39 @@ class DataBackupService {
         throw StateError('تعذر قراءة النسخة الاحتياطية من المجلد المختار.');
       }
       localPath = local;
+      tempCachePath = local;
     }
-    final backup = File(localPath);
-    if (!await backup.exists()) {
-      throw StateError('ملف النسخة الاحتياطية غير موجود: $backupPath');
+    try {
+      final backup = File(localPath);
+      if (!await backup.exists()) {
+        throw StateError('ملف النسخة الاحتياطية غير موجود: $backupPath');
+      }
+      await verifyBackup(localPath);
+      final dbPath = await databasePath();
+      final dbDir = Directory(p.dirname(dbPath));
+      if (!await dbDir.exists()) {
+        await dbDir.create(recursive: true);
+      }
+      // Keep the data we are about to replace so a bad restore stays reversible.
+      final current = File(dbPath);
+      if (await current.exists()) {
+        final backups = await backupsDirectory();
+        final safety = File(
+          p.join(backups.path,
+              'math_heroes_backup_${_stamp()}_before_restore.sqlite'),
+        );
+        await current.copy(safety.path);
+      }
+      await _deleteIfExists('$dbPath-wal');
+      await _deleteIfExists('$dbPath-shm');
+      await backup.copy(dbPath);
+      await _copySidecarIfExists('$localPath-wal', '$dbPath-wal');
+      await _copySidecarIfExists('$localPath-shm', '$dbPath-shm');
+    } finally {
+      if (tempCachePath != null) {
+        await _deleteIfExists(tempCachePath);
+      }
     }
-    await verifyBackup(localPath);
-    final dbPath = await databasePath();
-    final dbDir = Directory(p.dirname(dbPath));
-    if (!await dbDir.exists()) {
-      await dbDir.create(recursive: true);
-    }
-    // Keep the data we are about to replace so a bad restore stays reversible.
-    final current = File(dbPath);
-    if (await current.exists()) {
-      final backups = await backupsDirectory();
-      final safety = File(
-        p.join(backups.path,
-            'math_heroes_backup_${_stamp()}_before_restore.sqlite'),
-      );
-      await current.copy(safety.path);
-    }
-    await _deleteIfExists('$dbPath-wal');
-    await _deleteIfExists('$dbPath-shm');
-    await backup.copy(dbPath);
-    await _copySidecarIfExists('$localPath-wal', '$dbPath-wal');
-    await _copySidecarIfExists('$localPath-shm', '$dbPath-shm');
   }
 
   static Future<void> deleteBackupInfo(BackupInfo backup) async {
