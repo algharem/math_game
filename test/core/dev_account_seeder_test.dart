@@ -323,6 +323,45 @@ void main() {
       );
     });
 
+    test('release builds never seed without an explicit double opt-in', () {
+      bool enabled({
+        required bool releaseMode,
+        required bool seedRequested,
+        required bool allowInRelease,
+      }) =>
+          DevAccountSeeder.isEnabledFor(
+            releaseMode: releaseMode,
+            seedRequested: seedRequested,
+            allowInRelease: allowInRelease,
+          );
+
+      // Debug/profile: on unless explicitly disabled.
+      expect(
+        enabled(releaseMode: false, seedRequested: true, allowInRelease: false),
+        isTrue,
+      );
+      expect(
+        enabled(releaseMode: false, seedRequested: false, allowInRelease: true),
+        isFalse,
+      );
+
+      // Release: off by default, even when the seed flag is left at its
+      // default `true`. Both defines are required to opt in.
+      expect(
+        enabled(releaseMode: true, seedRequested: true, allowInRelease: false),
+        isFalse,
+        reason: 'release must not seed on the default seed flag alone',
+      );
+      expect(
+        enabled(releaseMode: true, seedRequested: false, allowInRelease: true),
+        isFalse,
+      );
+      expect(
+        enabled(releaseMode: true, seedRequested: true, allowInRelease: true),
+        isTrue,
+      );
+    });
+
     test('seeded users keep the standard account type for normal profiles',
         () async {
       final profile = await db.insertProfile(name: 'طالب عادي', avatarIndex: 0);

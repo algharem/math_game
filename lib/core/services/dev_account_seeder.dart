@@ -112,8 +112,25 @@ class DevAccountSeeder {
 
   /// Whether [main] should run the seed. Debug/profile builds default on;
   /// release builds default off.
-  static bool get enabled =>
-      _seedRequested && (!kReleaseMode || _allowInRelease);
+  static bool get enabled => isEnabledFor(
+        releaseMode: kReleaseMode,
+        seedRequested: _seedRequested,
+        allowInRelease: _allowInRelease,
+      );
+
+  /// Pure form of [enabled] so every build-mode combination can be tested.
+  ///
+  /// A release build seeds only when both `SEED_DEV_ACCOUNTS` and
+  /// `ALLOW_DEV_ACCOUNTS_IN_RELEASE` are explicitly true.
+  @visibleForTesting
+  static bool isEnabledFor({
+    required bool releaseMode,
+    required bool seedRequested,
+    required bool allowInRelease,
+  }) {
+    if (!seedRequested) return false;
+    return !releaseMode || allowInRelease;
+  }
 
   /// Creates any missing testing accounts. Safe to call on every launch.
   static Future<DevAccountSeedReport> seed(AppDatabase database) async {
