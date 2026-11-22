@@ -243,6 +243,86 @@ void main() {
       );
     });
 
+    test('seeding preserves the parent account and existing student progress',
+        () async {
+      // Opening the database seeds the default parent; capture it as-is.
+      final parentBefore = await db.getActiveParentUser();
+      expect(parentBefore, isNotNull);
+
+      // A normal (non-development) student with real exam progress.
+      final realStudent = await service.createStudent(
+        name: 'Real Kid',
+        schoolGrade: 7,
+        avatarIndex: 3,
+        password: 'pass1234',
+      );
+      await db.into(db.examRecords).insert(
+            ExamRecordsCompanion.insert(
+              sessionId: 'real-kid-session',
+              profileId: realStudent.profileId!,
+              section: 'multiplication',
+              title: 'اختبار حقيقي',
+              difficulty: 'easy',
+              answerMode: 'multipleChoice',
+              source: 'exam',
+              total: 2,
+              correct: 2,
+              wrong: 0,
+              unanswered: 0,
+              starsEarned: 2,
+              gemsEarned: 2,
+              pointsEarned: 2,
+              durationSeconds: 30,
+              createdAt: DateTime.now(),
+            ),
+          );
+
+      final report = await DevAccountSeeder.seed(db);
+      expect(report.createdCount, 9);
+
+      final accounts = await service.getAccounts();
+
+      // The parent row survives untouched: same id, hash, role and status.
+      final parents = accounts
+          .where((account) => account.user.role == UserRole.parent.name)
+          .toList();
+      expect(parents, hasLength(1), reason: 'seeding must not add a parent');
+      final parentAfter = parents.single;
+      expect(parentAfter.user.id, parentBefore!.id);
+      expect(parentAfter.user.passwordHash, parentBefore.passwordHash);
+      expect(parentAfter.user.isActive, isTrue);
+      expect(
+        PasswordHasher.verify('123456', parentAfter.user.passwordHash!),
+        isTrue,
+      );
+
+      // The normal student keeps its identity, password, grade and progress.
+      final studentAfter =
+          accounts.singleWhere((account) => account.user.id == realStudent.id);
+      expect(studentAfter.user.accountType, 'standard');
+      expect(studentAfter.user.username, isNull);
+      expect(studentAfter.user.isActive, isTrue);
+      expect(studentAfter.user.passwordHash, realStudent.user.passwordHash);
+      expect(
+        PasswordHasher.verify('pass1234', studentAfter.user.passwordHash!),
+        isTrue,
+      );
+      expect(studentAfter.profile?.name, 'Real Kid');
+      expect(studentAfter.profile?.schoolGrade, 7);
+      expect(await db.getExamHistory(realStudent.profileId!), hasLength(1));
+
+      // Nine development students were added alongside, not in place of.
+      expect(
+        accounts.where((account) => account.user.accountType == 'development'),
+        hasLength(9),
+      );
+      expect(
+        accounts.where((account) => account.user.role == UserRole.student.name),
+        hasLength(10),
+        reason: 'one real student plus nine development students',
+      );
+    });
+
     test('each seeded grade resolves to its own curriculum and questions',
         () async {
       await DevAccountSeeder.seed(db);
