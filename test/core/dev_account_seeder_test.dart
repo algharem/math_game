@@ -193,6 +193,51 @@ void main() {
       }
     });
 
+    test('a deliberately changed dev password is never reset by the seed',
+        () async {
+      await DevAccountSeeder.seed(db);
+      final before = (await service.getAccounts())
+          .singleWhere((account) => account.user.username == 'student3');
+
+      await service.resetStudentPassword(
+        userId: before.id,
+        newPassword: 'changed77',
+      );
+
+      final report = await DevAccountSeeder.seed(db);
+      expect(report.createdCount, 0);
+      expect(report.mismatchedCount, 0);
+      expect(report.alreadyPresentCount, 9);
+
+      final after = (await service.getAccounts())
+          .singleWhere((account) => account.user.username == 'student3');
+      expect(after.user.passwordHash, isNot(before.user.passwordHash));
+      expect(
+        PasswordHasher.verify('changed77', after.user.passwordHash!),
+        isTrue,
+      );
+      expect(
+        PasswordHasher.verify(
+          DevAccountSeeder.defaultPassword,
+          after.user.passwordHash!,
+        ),
+        isFalse,
+        reason: 'the seed must not restore the shared password',
+      );
+
+      // The custom password logs in; the shared default no longer does.
+      final custom = await service.loginWithUsername(
+        username: 'student3',
+        password: 'changed77',
+      );
+      expect(custom.isSuccess, isTrue);
+      final shared = await service.loginWithUsername(
+        username: 'student3',
+        password: DevAccountSeeder.defaultPassword,
+      );
+      expect(shared.isSuccess, isFalse);
+    });
+
     test('existing mismatched username is reported and never overwritten',
         () async {
       final profile = await db.insertProfile(

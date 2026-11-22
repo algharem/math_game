@@ -161,6 +161,9 @@ class DevAccountSeeder {
       } else if (profile.schoolGrade != spec.grade) {
         problems.add('grade=${profile.schoolGrade}');
       }
+      // Only presence is checked here. Re-verifying the shared password would
+      // cost one PBKDF2 run (120k iterations) per account on every launch, so
+      // a deliberately changed password is left as-is and reported as present.
       if (existing.passwordHash == null ||
           existing.passwordHash!.trim().isEmpty) {
         problems.add('passwordNotSet');

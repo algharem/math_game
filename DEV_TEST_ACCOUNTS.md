@@ -40,8 +40,15 @@ called once from `main()` before the UI starts.
 - **Safe:** it only creates missing `studentN` accounts. Parent accounts and
   normal students are untouched.
 - **Reported:** if a username already exists but its role, grade, active flag,
-  password state, or account type differs, the seed leaves it alone and logs a
-  mismatch. Fix it deliberately instead of relying on the seed to overwrite it.
+  whether a password is set, or account type differs, the seed leaves it alone
+  and logs a mismatch. Fix it deliberately instead of relying on the seed to
+  overwrite it.
+- **Passwords are not re-verified:** the seed only checks that a hash is
+  present, so it does not spend nine PBKDF2 runs on every launch. If you change
+  a seeded account's password, `111111` stops working for it, the account is
+  still reported as present, and the seed will **not** reset it. Set the
+  password back through the account-management flow if you want the shared
+  credentials again.
 - **Account type:** seeded users have `Users.accountType = 'development'`
   (schema v5). Normal accounts default to `'standard'`.
 - **Passwords:** stored with the existing PBKDF2-SHA256 `PasswordHasher`
