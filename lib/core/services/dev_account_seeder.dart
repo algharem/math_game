@@ -132,6 +132,44 @@ class DevAccountSeeder {
     return !releaseMode || allowInRelease;
   }
 
+  /// Runs the seed once during app startup.
+  ///
+  /// Returns `null` when the seed is disabled, when the database cannot be
+  /// opened, or when seeding throws. Startup must never fail because a
+  /// development convenience did, and the connection is always closed.
+  ///
+  /// [openDatabase] and [isEnabled] exist so tests can exercise this contract
+  /// without the real file-backed database or the real build flags.
+  static Future<DevAccountSeedReport?> seedAtStartup({
+    AppDatabase Function()? openDatabase,
+    bool Function()? isEnabled,
+  }) async {
+    if (!(isEnabled?.call() ?? enabled)) return null;
+
+    AppDatabase? database;
+    try {
+      database = (openDatabase ?? AppDatabase.new)();
+      final report = await seed(database);
+      if (report.createdCount > 0) {
+        debugPrint(
+          'Seeded ${report.createdCount} development student account(s).',
+        );
+      }
+      if (report.mismatchedCount > 0) {
+        debugPrint(
+          '${report.mismatchedCount} development username(s) already exist '
+          'with different data and were left untouched.',
+        );
+      }
+      return report;
+    } catch (error) {
+      debugPrint('Development account seeding skipped: $error');
+      return null;
+    } finally {
+      await database?.close();
+    }
+  }
+
   /// Creates any missing testing accounts. Safe to call on every launch.
   static Future<DevAccountSeedReport> seed(AppDatabase database) async {
     final results = <DevAccountSeedResult>[];

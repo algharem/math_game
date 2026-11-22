@@ -8,7 +8,6 @@ import 'package:sqlite3_flutter_libs/sqlite3_flutter_libs.dart';
 
 import 'app/app.dart';
 import 'app/providers.dart';
-import 'core/database/app_database.dart';
 import 'core/services/audio_service.dart';
 import 'core/services/data_backup_service.dart';
 import 'core/services/dev_account_seeder.dart';
@@ -22,7 +21,7 @@ Future<void> main() async {
   }
   await DataBackupService.applyPendingRestoreIfAny();
   final restoreError = await DataBackupService.takeLastRestoreError();
-  await _seedDevelopmentAccounts();
+  await DevAccountSeeder.seedAtStartup();
 
   final preferences = await SharedPreferences.getInstance();
   final settingsService = SettingsService(preferences);
@@ -44,31 +43,4 @@ Future<void> main() async {
       child: const MathHeroesApp(),
     ),
   );
-}
-
-/// Creates the nine shared testing students once. Idempotent: existing
-/// accounts (and their passwords/progress) are never modified. Disabled in
-/// release builds unless explicitly enabled with `--dart-define`.
-Future<void> _seedDevelopmentAccounts() async {
-  if (!DevAccountSeeder.enabled) return;
-  final database = AppDatabase();
-  try {
-    final report = await DevAccountSeeder.seed(database);
-    if (report.createdCount > 0) {
-      debugPrint(
-        'Seeded ${report.createdCount} development student account(s).',
-      );
-    }
-    if (report.mismatchedCount > 0) {
-      debugPrint(
-        '${report.mismatchedCount} development username(s) already exist '
-        'with different data and were left untouched.',
-      );
-    }
-  } catch (error) {
-    // Never block app startup because a development convenience failed.
-    debugPrint('Development account seeding skipped: $error');
-  } finally {
-    await database.close();
-  }
 }

@@ -91,6 +91,9 @@ recreate it. Never delete a profile that contains progress you want to keep.
 # Seeder, login, isolation, hashing and release-gating tests
 flutter test test/core/dev_account_seeder_test.dart
 
+# Startup path: disabled, enabled, two launches, and failure handling
+flutter test test/core/dev_account_startup_test.dart
+
 # Full login-screen flow: badges, username dialog, wrong password, grade load
 flutter test test/features/login_screen_dev_accounts_test.dart
 
