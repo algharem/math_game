@@ -81,10 +81,23 @@ recreate it. Never delete a profile that contains progress you want to keep.
 ## Verification
 
 ```bash
+# Seeder, login, isolation, hashing and release-gating tests
 flutter test test/core/dev_account_seeder_test.dart
+
+# Full login-screen flow: badges, username dialog, wrong password, grade load
+flutter test test/features/login_screen_dev_accounts_test.dart
+
+# Everything
+flutter test
 ```
 
-The test covers: all nine accounts, username/password login for each, correct
-role and grade, case-insensitive usernames, invalid credentials, idempotent
-re-runs, no password resets, mismatch reporting, per-account progress
-isolation, and persistence across a database reopen.
+The seeder tests cover: all nine accounts, username/password login for each,
+correct role and grade, case-insensitive usernames, invalid credentials,
+idempotent re-runs, no password resets, mismatch reporting, per-account
+progress isolation, persistence across a database reopen, and the release
+gating matrix.
+
+The password test inspects the stored rows directly: each hash is a valid
+`pbkdf2_sha256$…` envelope with a 16-byte random salt and 120,000 iterations,
+verifies against `111111`, rejects a wrong password, is unique per account, and
+the plaintext appears in neither the username nor the full name.
