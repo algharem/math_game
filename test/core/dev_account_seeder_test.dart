@@ -5,6 +5,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:math_heroes/core/database/app_database.dart';
 import 'package:math_heroes/core/services/account_service.dart';
+import 'package:math_heroes/core/security/password_hasher.dart';
 import 'package:math_heroes/core/services/dev_account_seeder.dart';
 import 'package:math_heroes/core/services/quiz_builder_service.dart';
 import 'package:math_heroes/shared/models/auth_models.dart';
@@ -135,6 +136,60 @@ void main() {
           before[account.user.username],
           reason: 'password hash changed for ${account.user.username}',
         );
+      }
+    });
+
+    test('seeded passwords are salted hashes and never stored as plaintext',
+        () async {
+      await DevAccountSeeder.seed(db);
+
+      final students =
+          (await service.getAccounts()).where((row) => row.isStudent).toList();
+      expect(students, hasLength(9));
+
+      final hashes = <String>{};
+      for (final account in students) {
+        final stored = account.user.passwordHash;
+        expect(
+          stored,
+          isNotNull,
+          reason: 'missing password hash for ${account.user.username}',
+        );
+        final hash = stored!;
+
+        // Stored as a recognizable PBKDF2-SHA256 envelope, not the raw value.
+        expect(
+          hash,
+          startsWith('${PasswordHasher.algorithm}\$'),
+          reason: 'unhashed password for ${account.user.username}',
+        );
+        expect(hash, isNot(DevAccountSeeder.defaultPassword));
+        expect(hash, isNot(contains(DevAccountSeeder.defaultPassword)));
+
+        // The envelope is structurally valid and carries a real random salt.
+        final material = PasswordHasher.materialFrom(hash);
+        expect(material, isNotNull);
+        expect(material!.salt, hasLength(16));
+        expect(material.iterations, PasswordHasher.defaultIterations);
+        expect(material.key, hasLength(PasswordHasher.defaultKeyLength));
+
+        // The shared password verifies against the stored hash.
+        expect(
+          PasswordHasher.verify(DevAccountSeeder.defaultPassword, hash),
+          isTrue,
+        );
+        expect(PasswordHasher.verify('not-the-password', hash), isFalse);
+
+        // No per-account salt reuse, even though the password is shared.
+        expect(
+          hashes.add(hash),
+          isTrue,
+          reason: 'duplicate password hash for ${account.user.username}',
+        );
+
+        // Plaintext does not leak into any other stored text column.
+        expect(account.user.username, isNot(contains('111111')));
+        expect(account.user.fullName, isNot(contains('111111')));
       }
     });
 
